@@ -11,6 +11,7 @@ import Shop from './pages/Shop';
 import Referrals from './pages/Referrals';
 import Support, { ExtendedTicket } from './pages/Support';
 import Instructions from './pages/Instructions';
+import Admin from './pages/Admin';
 
 const App: React.FC = () => {
   const [balance, setBalance] = useState(1500); 
@@ -18,6 +19,7 @@ const App: React.FC = () => {
     active: false,
     expiresAt: null
   });
+  const [isAdmin, setIsAdmin] = useState(true); // В реальном приложении это должно приходить с бэкенда
   
   // Example admin message. In a real app, fetch this from an API.
   const [adminMessage] = useState("⚡️ Внимание! Технические работы на сервере NL-VIP с 03:00 до 05:00 МСК. Приносим извинения за неудобства.");
@@ -153,12 +155,13 @@ const App: React.FC = () => {
     <HashRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<Main subscription={userSubscription} adminMessage={adminMessage} />} />
+          <Route index element={<Main subscription={userSubscription} adminMessage={adminMessage} isAdmin={isAdmin} />} />
           <Route path="servers" element={<Tunnels subscription={userSubscription} onReport={openReportModal} />} />
           <Route path="shop" element={<Shop balance={balance} subscription={userSubscription} onBuy={handleBuyPlanClick} onTopUp={handleTopUp} />} />
           <Route path="referrals" element={<Referrals />} />
           <Route path="support" element={<Support tickets={tickets} onCreateTicket={handleCreateTicket} />} />
           <Route path="instructions" element={<Instructions />} />
+          {isAdmin && <Route path="admin" element={<Admin />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

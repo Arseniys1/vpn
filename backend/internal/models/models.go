@@ -19,6 +19,7 @@ type User struct {
 	ReferralCode string         `gorm:"uniqueIndex;not null" json:"referral_code"`
 	ReferredBy   *uuid.UUID     `gorm:"type:uuid;index" json:"referred_by"`
 	IsActive     bool           `gorm:"default:true" json:"is_active"`
+	IsAdmin      bool           `gorm:"default:false" json:"is_admin"` // Admin role
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`

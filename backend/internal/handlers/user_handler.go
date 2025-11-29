@@ -28,6 +28,7 @@ type MeResponse struct {
 	Balance         int64     `json:"balance"`
 	ReferralCode    string    `json:"referral_code"`
 	HasSubscription bool      `json:"has_subscription"`
+	IsAdmin         bool      `json:"is_admin"`
 }
 
 func (h *UserHandler) Me(c *gin.Context) {
@@ -65,6 +66,7 @@ func (h *UserHandler) Me(c *gin.Context) {
 		Balance:         user.Balance,
 		ReferralCode:    user.ReferralCode,
 		HasSubscription: hasSubscription,
+		IsAdmin:         user.IsAdmin,
 	})
 }
 
@@ -91,4 +93,3 @@ func (h *UserHandler) TopUp(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Balance updated successfully"})
 }
-

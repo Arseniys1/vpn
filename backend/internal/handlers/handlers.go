@@ -15,6 +15,7 @@ type Handlers struct {
 	SubscriptionHandler *SubscriptionHandler
 	ServerHandler       *ServerHandler
 	ConnectionHandler   *ConnectionHandler
+	AdminHandler        *AdminHandler
 }
 
 func NewHandlers(
@@ -29,10 +30,11 @@ func NewHandlers(
 		SubscriptionHandler: NewSubscriptionHandler(subscriptionService, planService, userService),
 		ServerHandler:       NewServerHandler(db),
 		ConnectionHandler:   NewConnectionHandler(connectionService, userService),
+		AdminHandler:        NewAdminHandler(db),
 	}
 }
 
-func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string) {
+func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string, db *database.DB) {
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -68,6 +70,34 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string) {
 				connectionRoutes.GET("", h.ConnectionHandler.GetMyConnections)
 				connectionRoutes.POST("", h.ConnectionHandler.CreateConnection)
 				connectionRoutes.DELETE("/:id", h.ConnectionHandler.DeleteConnection)
+			}
+
+			// Admin routes (require admin role)
+			adminRoutes := protected.Group("/admin")
+			adminRoutes.Use(middleware.RequireAdmin(db))
+			{
+				// Stats
+				adminRoutes.GET("/stats", h.AdminHandler.GetStats)
+
+				// Server management
+				adminRoutes.GET("/servers", h.AdminHandler.GetAllServers)
+				adminRoutes.POST("/servers", h.AdminHandler.CreateServer)
+				adminRoutes.PUT("/servers/:id", h.AdminHandler.UpdateServer)
+				adminRoutes.DELETE("/servers/:id", h.AdminHandler.DeleteServer)
+
+				// User management
+				adminRoutes.GET("/users", h.AdminHandler.GetAllUsers)
+				adminRoutes.PUT("/users/:id", h.AdminHandler.UpdateUser)
+
+				// Plan management
+				adminRoutes.GET("/plans", h.AdminHandler.GetAllPlans)
+				adminRoutes.POST("/plans", h.AdminHandler.CreatePlan)
+				adminRoutes.PUT("/plans/:id", h.AdminHandler.UpdatePlan)
+				adminRoutes.DELETE("/plans/:id", h.AdminHandler.DeletePlan)
+
+				// Ticket management
+				adminRoutes.GET("/tickets", h.AdminHandler.GetAllTickets)
+				adminRoutes.POST("/tickets/:id/reply", h.AdminHandler.ReplyToTicket)
 			}
 		}
 	}

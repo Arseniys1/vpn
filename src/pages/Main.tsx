@@ -6,9 +6,10 @@ import { UserSubscription } from '../types';
 interface MainProps {
   subscription: UserSubscription;
   adminMessage?: string;
+  isAdmin?: boolean;
 }
 
-const Main: React.FC<MainProps> = ({ subscription, adminMessage }) => {
+const Main: React.FC<MainProps> = ({ subscription, adminMessage, isAdmin }) => {
   const navigate = useNavigate();
 
   return (
@@ -91,6 +92,22 @@ const Main: React.FC<MainProps> = ({ subscription, adminMessage }) => {
 
         {/* Quick Actions & News Grid */}
         <div className="flex flex-col gap-4">
+            {isAdmin && (
+              <TgCard className="p-4 active:scale-95 transition-transform cursor-pointer bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/30" onClick={() => navigate('/admin')}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-orange-500/20 text-orange-500 flex items-center justify-center">
+                      <i className="fas fa-shield-halved"></i>
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-orange-500">Панель Администратора</div>
+                      <div className="text-xs text-tg-hint">Управление системой</div>
+                    </div>
+                  </div>
+                  <i className="fas fa-chevron-right text-orange-500"></i>
+                </div>
+              </TgCard>
+            )}
             <div className="grid grid-cols-2 gap-3">
                 <TgCard className="p-4 active:scale-95 transition-transform cursor-pointer hover:bg-tg-hover" onClick={() => navigate('/servers')}>
                 <div className="flex flex-col items-center text-center">
