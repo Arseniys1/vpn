@@ -11,6 +11,7 @@ export interface ServerLocation {
   ping: number;
   status: ServerStatus;
   protocol: 'vless' | 'vmess' | 'trojan';
+  adminMessage?: string;
 }
 
 export interface Plan {

@@ -30,7 +30,8 @@ export const AVAILABLE_SERVERS: ServerLocation[] = [
     flag: '🇩🇪',
     ping: 45,
     status: ServerStatus.ONLINE,
-    protocol: 'vless'
+    protocol: 'vless',
+    adminMessage: 'Сервер обновлен! Новый высокоскоростной канал.'
   },
   {
     id: 'us-east',
@@ -46,7 +47,8 @@ export const AVAILABLE_SERVERS: ServerLocation[] = [
     flag: '🇳🇱',
     ping: 38,
     status: ServerStatus.CROWDED,
-    protocol: 'vless'
+    protocol: 'vless',
+    adminMessage: 'VIP сервер - максимальная скорость!'
   },
   {
     id: 'sg-asia',
@@ -54,7 +56,8 @@ export const AVAILABLE_SERVERS: ServerLocation[] = [
     flag: '🇸🇬',
     ping: 180,
     status: ServerStatus.MAINTENANCE,
-    protocol: 'trojan'
+    protocol: 'trojan',
+    adminMessage: 'Технические работы до 18:00. Приносим извинения.'
   },
   {
     id: 'fi-hel',

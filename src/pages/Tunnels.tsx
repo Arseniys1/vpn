@@ -52,7 +52,7 @@ const Tunnels: React.FC<TunnelsProps> = ({ subscription, onReport }) => {
                    onClick={() => handleCreateConnection(server)}
                    className="flex items-center p-4 cursor-pointer active:bg-tg-hover transition-colors"
                 >
-                   <div className="text-3xl mr-4">{server.flag}</div>
+                   <div className="text-4xl mr-3 min-w-[48px] flex items-center justify-center" style={{fontFamily: 'Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif'}}>{server.flag}</div>
                    <div className="flex-1">
                       <div className="flex justify-between items-center mb-1">
                          <span className="font-semibold text-[15px] text-tg-text">{server.country}</span>
@@ -74,6 +74,12 @@ const Tunnels: React.FC<TunnelsProps> = ({ subscription, onReport }) => {
                          }`}></span>
                          {server.status} • {server.protocol.toUpperCase()}
                       </div>
+                      {server.adminMessage && (
+                         <div className="mt-2 text-xs text-tg-blue bg-tg-blue/10 rounded-lg px-2 py-1.5 flex items-start">
+                            <i className="fas fa-info-circle mr-1.5 mt-0.5 flex-shrink-0"></i>
+                            <span>{server.adminMessage}</span>
+                         </div>
+                      )}
                    </div>
                    <div className="ml-3 text-tg-hint">
                       <i className={`fas fa-chevron-down transition-transform duration-300 ${isActive ? 'rotate-180' : ''}`}></i>
