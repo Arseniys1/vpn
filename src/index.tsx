@@ -25,6 +25,7 @@ declare global {
           message: string;
           buttons?: {id?: string; type?: 'default' | 'ok' | 'close' | 'cancel' | 'destructive', text?: string}[];
         }, callback?: (id: string) => void) => void;
+        showAlert: (message: string, callback?: () => void) => void;
       };
     };
   }

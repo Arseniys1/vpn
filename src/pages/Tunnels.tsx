@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SectionHeader from '../components/SectionHeader';
-import { AVAILABLE_SERVERS } from '../constants';
 import { ServerLocation, UserSubscription, ServerStatus } from '../types';
+import * as api from '../services/api';
 
 interface TunnelsProps {
   subscription: UserSubscription;
@@ -12,8 +12,44 @@ interface TunnelsProps {
 const Tunnels: React.FC<TunnelsProps> = ({ subscription, onReport }) => {
   const navigate = useNavigate();
   const [activeServerId, setActiveServerId] = useState<string | null>(null);
+  const [servers, setServers] = useState<ServerLocation[]>([]);
+  const [connections, setConnections] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleCreateConnection = (server: ServerLocation) => {
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch servers
+      const serversData = await api.getServers();
+      const serversList = (serversData.servers || []).map((s: any) => ({
+        id: s.id,
+        country: s.country,
+        flag: s.flag,
+        ping: s.ping || 50,
+        status: s.status as ServerStatus,
+        protocol: s.protocol,
+        adminMessage: s.admin_message
+      }));
+      setServers(serversList);
+      
+      // Fetch user connections if subscribed
+      if (subscription.active) {
+        const connectionsData = await api.getMyConnections();
+        setConnections(connectionsData.connections || []);
+      }
+    } catch (error) {
+      console.error('Failed to load servers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateConnection = async (server: ServerLocation) => {
     if (!subscription.active) {
       navigate('/shop');
       if (window.Telegram?.WebApp?.HapticFeedback) {
@@ -21,9 +57,29 @@ const Tunnels: React.FC<TunnelsProps> = ({ subscription, onReport }) => {
       }
       return;
     }
-    setActiveServerId(prev => prev === server.id ? null : server.id);
-    if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.selectionChanged();
+    
+    // Toggle connection
+    if (activeServerId === server.id) {
+      setActiveServerId(null);
+    } else {
+      try {
+        // Create connection on backend
+        const result = await api.createConnection(server.id);
+        setActiveServerId(server.id);
+        
+        // Reload connections
+        const connectionsData = await api.getMyConnections();
+        setConnections(connectionsData.connections || []);
+        
+        if (window.Telegram?.WebApp?.HapticFeedback) {
+          window.Telegram.WebApp.HapticFeedback.selectionChanged();
+        }
+      } catch (error: any) {
+        console.error('Failed to create connection:', error);
+        if (window.Telegram?.WebApp?.showAlert) {
+          window.Telegram.WebApp.showAlert(error.message || 'Ошибка создания подключения');
+        }
+      }
     }
   };
 
@@ -34,17 +90,39 @@ const Tunnels: React.FC<TunnelsProps> = ({ subscription, onReport }) => {
      }
   };
 
-  const getKey = (server: ServerLocation) => 
-    `${server.protocol}://${Math.random().toString(36).substr(2)}@${server.country.toLowerCase()}.vpn.com:443?security=reality&type=tcp&headerType=none#${server.country}-User1`;
+  const getKey = (server: ServerLocation) => {
+    // Find connection for this server
+    const connection = connections.find(c => c.server_id === server.id);
+    if (connection && connection.config_url) {
+      return connection.config_url;
+    }
+    return `${server.protocol}://${Math.random().toString(36).substr(2)}@${server.country.toLowerCase()}.vpn.com:443?security=reality&type=tcp&headerType=none#${server.country}-User1`;
+  };
   
-  const getSubLink = (server: ServerLocation) => 
-    `https://api.xray-service.io/sub/${server.id}/${Math.random().toString(36).substr(2, 6)}`;
+  const getSubLink = (server: ServerLocation) => {
+    const connection = connections.find(c => c.server_id === server.id);
+    if (connection && connection.subscription_url) {
+      return connection.subscription_url;
+    }
+    return `https://api.xray-service.io/sub/${server.id}/${Math.random().toString(36).substr(2, 6)}`;
+  };
+
+  if (loading) {
+    return (
+      <div className="pt-2 w-full">
+        <SectionHeader title="Доступные серверы" />
+        <div className="flex items-center justify-center p-8">
+          <div className="w-8 h-8 border-4 border-tg-blue border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-2 w-full">
       <SectionHeader title="Доступные серверы" />
       <div className="flex flex-col gap-3 px-4">
-        {AVAILABLE_SERVERS.map((server) => {
+        {servers.map((server) => {
            const isActive = activeServerId === server.id;
            return (
              <div key={server.id} className={`bg-tg-secondary rounded-xl overflow-hidden shadow-sm transition-all duration-300 border border-transparent hover:border-tg-separator ${isActive ? 'ring-1 ring-tg-blue' : ''}`}>

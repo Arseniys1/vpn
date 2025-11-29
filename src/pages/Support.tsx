@@ -12,9 +12,10 @@ export interface ExtendedTicket extends SupportTicket {
 interface SupportProps {
   tickets: ExtendedTicket[];
   onCreateTicket: (subject: string, message: string, category: string) => void;
+  onAddMessage: (ticketId: string, message: string) => void;
 }
 
-const Support: React.FC<SupportProps> = ({ tickets, onCreateTicket }) => {
+const Support: React.FC<SupportProps> = ({ tickets, onCreateTicket, onAddMessage }) => {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [selectedTicket, setSelectedTicket] = useState<ExtendedTicket | null>(null);
     const [chatInput, setChatInput] = useState("");
@@ -51,9 +52,12 @@ const Support: React.FC<SupportProps> = ({ tickets, onCreateTicket }) => {
     const handleSendMessage = () => {
         if (!chatInput.trim() || !selectedTicket) return;
         
+        // Call the API to add message
+        onAddMessage(selectedTicket.id, chatInput);
+        
+        // Optimistically update UI
         const newMessageObj = { sender: 'user' as const, text: chatInput, date: new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'}) };
         
-        // Update local tickets state
         const updatedTickets = localTickets.map(t => {
             if (t.id === selectedTicket.id) {
                 return { 
@@ -65,7 +69,6 @@ const Support: React.FC<SupportProps> = ({ tickets, onCreateTicket }) => {
         });
         
         setLocalTickets(updatedTickets);
-        // Also update the currently selected ticket reference to reflect changes immediately
         setSelectedTicket(prev => prev ? ({ ...prev, messages: [...(prev.messages || []), newMessageObj] }) : null);
         
         setChatInput("");

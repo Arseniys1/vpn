@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Modal from './components/Modal';
 import { Plan, UserSubscription, ServerLocation, OSType } from './types';
+import * as api from './services/api';
 
 // Pages
 import Main from './pages/Main';
@@ -14,31 +15,16 @@ import Instructions from './pages/Instructions';
 import Admin from './pages/Admin';
 
 const App: React.FC = () => {
-  const [balance, setBalance] = useState(1500); 
+  const [balance, setBalance] = useState(0); 
   const [userSubscription, setUserSubscription] = useState<UserSubscription>({
     active: false,
     expiresAt: null
   });
-  const [isAdmin, setIsAdmin] = useState(true); // В реальном приложении это должно приходить с бэкенда
-  
-  // Example admin message. In a real app, fetch this from an API.
-  const [adminMessage] = useState("⚡️ Внимание! Технические работы на сервере NL-VIP с 03:00 до 05:00 МСК. Приносим извинения за неудобства.");
-
-  // Updated mock data with a reply
-  const [tickets, setTickets] = useState<ExtendedTicket[]>([
-      { 
-          id: '101', 
-          subject: 'Не работает Германия', 
-          message: 'Вчера вечером перестал подключаться к серверу DE-1. Пробовал разные клиенты, не помогает.', 
-          status: 'answered', 
-          date: '12.10.2023', 
-          category: 'connection',
-          reply: 'Здравствуйте! На сервере DE-1 проводились технические работы. Сейчас доступ восстановлен. Попробуйте обновить подписку.',
-          messages: []
-      }
-  ]);
-  
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminMessage, setAdminMessage] = useState<string>("");
+  const [tickets, setTickets] = useState<ExtendedTicket[]>([]);
   const [purchasePlan, setPurchasePlan] = useState<Plan | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Report State
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -48,60 +34,115 @@ const App: React.FC = () => {
   const [reportProvider, setReportProvider] = useState("");
   const [reportRegion, setReportRegion] = useState("");
   
+  // Initialize Telegram WebApp
   useEffect(() => {
     if (window.Telegram?.WebApp) {
         window.Telegram.WebApp.ready();
         window.Telegram.WebApp.expand();
-        // Force header colors
         window.Telegram.WebApp.setHeaderColor('#0e1621'); 
         window.Telegram.WebApp.setBackgroundColor('#0e1621');
     }
+    loadUserData();
   }, []);
+
+  // Load user data from backend
+  const loadUserData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch user data
+      const userData = await api.getMe();
+      setBalance(userData.balance || 0);
+      setIsAdmin(userData.is_admin || false);
+      
+      // Fetch subscription
+      const subscription = await api.getMySubscription();
+      if (subscription && subscription.active) {
+        setUserSubscription({
+          active: true,
+          expiresAt: new Date(subscription.expires_at),
+          planName: subscription.plan_name
+        });
+      }
+      
+      // Fetch tickets
+      const ticketsData = await api.getMyTickets();
+      setTickets(ticketsData.tickets || []);
+      
+      // Fetch servers to get admin message
+      const serversData = await api.getServers();
+      if (serversData.servers && serversData.servers.length > 0) {
+        const serverWithMessage = serversData.servers.find((s: any) => s.admin_message);
+        if (serverWithMessage) {
+          setAdminMessage(serverWithMessage.admin_message);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load user data:', error);
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert('Ошибка загрузки данных. Попробуйте позже.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleBuyPlanClick = (plan: Plan) => {
     setPurchasePlan(plan);
   };
   
-  const handleConfirmPurchase = () => {
+  const handleConfirmPurchase = async () => {
     if (!purchasePlan) return;
     
-    if (balance >= purchasePlan.priceStars) {
-        setBalance(prev => prev - purchasePlan.priceStars);
-        
-        const now = new Date();
-        const baseDate = (userSubscription.active && userSubscription.expiresAt && userSubscription.expiresAt > now)
-            ? userSubscription.expiresAt
-            : now;
-        
-        const newExpiry = new Date(baseDate);
-        newExpiry.setMonth(newExpiry.getMonth() + purchasePlan.durationMonths);
-
-        setUserSubscription({
-            active: true,
-            expiresAt: newExpiry,
-            planName: purchasePlan.name
-        });
-        
-        if (window.Telegram?.WebApp?.HapticFeedback) {
-            window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-        }
-        
-        setPurchasePlan(null);
-        window.location.hash = '#/';
-        
-    } else {
-        alert('Недостаточно средств на балансе');
-        setPurchasePlan(null);
+    try {
+      const result = await api.purchasePlan(purchasePlan.id);
+      
+      // Update local state
+      setBalance(result.new_balance);
+      setUserSubscription({
+        active: true,
+        expiresAt: new Date(result.subscription.expires_at),
+        planName: result.subscription.plan_name
+      });
+      
+      if (window.Telegram?.WebApp?.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      }
+      
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert('Подписка успешно активирована!');
+      }
+      
+      setPurchasePlan(null);
+      window.location.hash = '#/';
+      
+    } catch (error: any) {
+      console.error('Purchase failed:', error);
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert(error.message || 'Ошибка при покупке подписки');
+      }
+      setPurchasePlan(null);
     }
   };
 
-  const handleTopUp = () => {
-    // Mock top up functionality
-    setBalance(prev => prev + 500);
-    if (window.Telegram?.WebApp?.HapticFeedback) {
+  const handleTopUp = async () => {
+    try {
+      const result = await api.topUp(500);
+      setBalance(result.new_balance);
+      
+      if (window.Telegram?.WebApp?.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      }
+      
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert(`Баланс пополнен на 500 ★. Новый баланс: ${result.new_balance} ★`);
+      }
+    } catch (error: any) {
+      console.error('Top up failed:', error);
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert(error.message || 'Ошибка пополнения баланса');
+      }
     }
-    alert('Баланс успешно пополнен на 500 ★ (Тест)');
   };
 
   const openReportModal = (server: ServerLocation) => {
@@ -112,44 +153,92 @@ const App: React.FC = () => {
     setIsReportModalOpen(true);
   };
 
-  const handleSendReport = () => {
+  const handleSendReport = async () => {
     if (!reportText.trim() || !selectedServerForReport) return;
     
-    // In a real app, you would send this data to your backend
-    console.log("Report sent:", {
-        server: selectedServerForReport,
-        text: reportText,
-        os: reportOS,
-        provider: reportProvider,
-        region: reportRegion
-    });
+    try {
+      await api.createTicket({
+        subject: `Проблема с сервером ${selectedServerForReport.country}`,
+        message: `ОС: ${reportOS}
+Провайдер: ${reportProvider}
+Регион: ${reportRegion}
 
-    if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-    }
-    
-    alert("Спасибо! Ваш отчет отправлен администраторам.");
-    setIsReportModalOpen(false);
-  };
+${reportText}`,
+        category: 'connection'
+      });
+      
+      // Reload tickets
+      const ticketsData = await api.getMyTickets();
+      setTickets(ticketsData.tickets || []);
 
-  const handleCreateTicket = (subject: string, message: string, category: string) => {
-      const newTicket: ExtendedTicket = {
-          id: Math.floor(Math.random() * 1000).toString(),
-          subject,
-          message,
-          category: category as any,
-          status: 'open',
-          date: new Date().toLocaleDateString('ru-RU'),
-          messages: []
-      };
-      setTickets([newTicket, ...tickets]);
       if (window.Telegram?.WebApp?.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
+      
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert('Спасибо! Ваш отчет отправлен администраторам.');
+      }
+      
+      setIsReportModalOpen(false);
+    } catch (error: any) {
+      console.error('Report failed:', error);
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert(error.message || 'Ошибка отправки отчета');
+      }
+    }
+  };
+
+  const handleCreateTicket = async (subject: string, message: string, category: string) => {
+    try {
+      await api.createTicket({ subject, message, category });
+      
+      // Reload tickets
+      const ticketsData = await api.getMyTickets();
+      setTickets(ticketsData.tickets || []);
+      
+      if (window.Telegram?.WebApp?.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      }
+    } catch (error: any) {
+      console.error('Create ticket failed:', error);
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert(error.message || 'Ошибка создания тикета');
+      }
+    }
+  };
+
+  const handleAddTicketMessage = async (ticketId: string, message: string) => {
+    try {
+      await api.addTicketMessage(ticketId, message);
+      
+      // Reload tickets
+      const ticketsData = await api.getMyTickets();
+      setTickets(ticketsData.tickets || []);
+      
+      if (window.Telegram?.WebApp?.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.selectionChanged();
+      }
+    } catch (error: any) {
+      console.error('Add message failed:', error);
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert(error.message || 'Ошибка отправки сообщения');
+      }
+    }
   };
 
   // Validation check
   const isReportFormValid = reportText.trim().length > 0 && reportProvider.trim().length > 0 && reportRegion.trim().length > 0;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-tg-bg">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-tg-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-tg-hint">Загрузка...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <HashRouter>
@@ -159,7 +248,7 @@ const App: React.FC = () => {
           <Route path="servers" element={<Tunnels subscription={userSubscription} onReport={openReportModal} />} />
           <Route path="shop" element={<Shop balance={balance} subscription={userSubscription} onBuy={handleBuyPlanClick} onTopUp={handleTopUp} />} />
           <Route path="referrals" element={<Referrals />} />
-          <Route path="support" element={<Support tickets={tickets} onCreateTicket={handleCreateTicket} />} />
+          <Route path="support" element={<Support tickets={tickets} onCreateTicket={handleCreateTicket} onAddMessage={handleAddTicketMessage} />} />
           <Route path="instructions" element={<Instructions />} />
           {isAdmin && <Route path="admin" element={<Admin />} />}
           <Route path="*" element={<Navigate to="/" replace />} />

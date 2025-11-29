@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import TgCard from '../components/TgCard';
 import SectionHeader from '../components/SectionHeader';
-import { PLANS } from '../constants';
 import { Plan, UserSubscription } from '../types';
+import * as api from '../services/api';
 
 interface ShopProps {
   balance: number;
@@ -12,6 +12,42 @@ interface ShopProps {
 }
 
 const Shop: React.FC<ShopProps> = ({ balance, subscription, onBuy, onTopUp }) => {
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadPlans();
+  }, []);
+
+  const loadPlans = async () => {
+    try {
+      setLoading(true);
+      const plansData = await api.getPlans();
+      const plansList = (plansData.plans || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        durationMonths: p.duration_months,
+        priceStars: p.price_stars,
+        discount: p.discount
+      }));
+      setPlans(plansList);
+    } catch (error) {
+      console.error('Failed to load plans:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="pt-4 px-4 w-full">
+        <div className="flex items-center justify-center p-8">
+          <div className="w-8 h-8 border-4 border-tg-blue border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pt-4 px-4 w-full">
       <div className="bg-gradient-to-r from-tg-secondary to-tg-bg border border-tg-separator rounded-xl p-5 mb-6 flex items-center justify-between shadow-sm">
@@ -31,7 +67,7 @@ const Shop: React.FC<ShopProps> = ({ balance, subscription, onBuy, onTopUp }) =>
 
       <SectionHeader title="Выберите план" />
       <div className="flex flex-col gap-3">
-        {PLANS.map((plan) => {
+        {plans.map((plan) => {
           const isCurrent = subscription.active && subscription.planName === plan.name;
           return (
             <TgCard key={plan.id} className={`transition-all hover:bg-tg-hover ${isCurrent ? 'ring-1 ring-tg-green' : ''}`}>
