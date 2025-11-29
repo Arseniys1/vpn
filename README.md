@@ -1,36 +1,59 @@
-# Xray VPN Connect - Telegram Mini App
+# 🚀 Xray VPN Connect - Production Ready
 
-🚀 **Production-ready VPN service with Telegram Mini App interface**
+## ✅ Complete Telegram Mini App for VPN Service
 
-A complete VPN management system built with Go backend and React frontend, designed for deployment on Docker Swarm with multiple replicas.
+A production-ready VPN management system built with Go backend and React frontend, designed for deployment on Docker Swarm with multiple replicas.
 
-## 📋 Features
+## ✅ Production Ready Features
 
 ### Backend (Go + Gin)
-- ✅ **RESTful API** with rate limiting
-- ✅ **PostgreSQL** with connection pooling
-- ✅ **RabbitMQ** task queue for async operations
-- ✅ **Xray/3x-ui** panel integration
-- ✅ **Telegram WebApp** authentication
-- ✅ **Docker Swarm** ready with health checks
-- ✅ **Graceful shutdown** and error recovery
-- ✅ **Structured logging** with zerolog
-- ✅ **Database migrations** and seeding
-- ✅ **Docker secrets** support
-- ✅ **Production-grade** error handling
+- ✅ RESTful API endpoints
+- ✅ PostgreSQL database integration
+- ✅ Admin authentication & authorization
+- ✅ CRUD operations for all entities
+- ✅ Telegram WebApp authentication
+- ✅ Rate limiting (10 req/s per IP)
+- ✅ Connection pooling optimization
+- ✅ Health checks (/health, /ready)
+- ✅ Docker Swarm multi-replica support
+- ✅ Docker secrets for secure credentials
+- ✅ Graceful shutdown handling
+- ✅ Structured logging (zerolog)
+- ✅ Queue-based task processing
+- ✅ Xray panel integration
 
-### Frontend (React + TypeScript + Vite)
-- ✅ **Admin Panel** with real-time statistics
-- ✅ **Server management** (CRUD operations)
-- ✅ **User management** with search
-- ✅ **Plan management**
-- ✅ **Support ticket** system
-- ✅ **Responsive design** for mobile
-- ✅ **Environment-based** configuration
-- ✅ **Retry logic** for API calls
-- ✅ **Production build** with nginx
+### Frontend (React + TypeScript)
+- ✅ Complete admin panel
+- ✅ User dashboard
+- ✅ Server selection with flags
+- ✅ Subscription management
+- ✅ Support ticket system
+- ✅ Referral program
+- ✅ Instructions for all platforms
+- ✅ Responsive design
+- ✅ Telegram WebApp native features
+- ✅ Haptic feedback
+- ✅ Loading states
+- ✅ Error handling
 
-## 🏗️ Architecture
+## 📋 What's Working
+
+### Admin Features
+- ✅ Real-time statistics dashboard
+- ✅ Server management (CRUD)
+- ✅ User management with search
+- ✅ Plan management
+- ✅ Ticket system with replies
+- ✅ Queue monitoring
+
+### User Features
+- ✅ Server list with country flags
+- ✅ Subscription status and expiry
+- ✅ VPN key generation
+- ✅ Support ticket creation
+- ✅ Instructions for all platforms
+- ✅ Referral system
+- ✅ Profile management
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -92,57 +115,81 @@ A complete VPN management system built with Go backend and React frontend, desig
 
 ## 🚀 Quick Start
 
-### Development
+### Prerequisites
+- Docker and Docker Compose
+- PostgreSQL 15+
+- RabbitMQ 3+
+- Telegram Bot (via @BotFather)
 
-1. **Backend Setup:**
+### Backend Setup
+
+1. **Clone and configure:**
+   ```bash
+   cd backend
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+2. **Set up database:**
+   ```bash
+   docker-compose up -d postgres rabbitmq
+   # Wait for services to start
+   ```
+
+3. **Run migrations and start services:**
+   ```bash
+   docker-compose up -d
+   ```
+
+4. **Set first admin user:**
+   ```sql
+   UPDATE users SET is_admin = true WHERE telegram_id = YOUR_TELEGRAM_ID;
+   ```
+
+### Frontend Setup
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API endpoint
+   ```
+
+3. **Development:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Production build:**
+   ```bash
+   npm run build
+   ```
+
+## 🐳 Docker Swarm Deployment
+
+The application is ready for production deployment in Docker Swarm with multiple replicas:
+
 ```bash
-cd backend
-cp configs/config.example.yaml configs/config.yaml
-# Edit config.yaml with your settings
+# Initialize swarm (if not already)
+docker swarm init
 
-# Start infrastructure
-docker-compose up -d postgres rabbitmq
-
-# Run API
-go run cmd/api/main.go
-
-# Run Worker (in another terminal)
-go run cmd/worker/main.go
-```
-
-2. **Frontend Setup:**
-```bash
-npm install
-npm run dev
-```
-
-### Production Deployment
-
-**📖 See [PRODUCTION_DEPLOYMENT.md](./PRODUCTION_DEPLOYMENT.md) for complete guide**
-
-Quick deploy:
-
-```bash
-# 1. Create Docker secrets
-echo "your_password" | docker secret create db_password -
-echo "your_bot_token" | docker secret create telegram_bot_token -
+# Create secrets
+echo "your_db_password" | docker secret create db_password -
+echo "your_telegram_bot_token" | docker secret create telegram_bot_token -
 echo "your_jwt_secret" | docker secret create jwt_secret -
-echo "your_rabbitmq_pass" | docker secret create rabbitmq_password -
 
-# 2. Configure environment
-cd backend
-cp .env.example .env
-# Edit .env with your domain and settings
-
-# 3. Deploy
-./deploy.sh  # Linux
-# OR
-.\deploy.ps1  # Windows
+# Deploy stack
+docker stack deploy -c docker-compose.swarm.yml xray-vpn
 ```
 
 ## 📚 Documentation
 
 - **[PRODUCTION_DEPLOYMENT.md](./PRODUCTION_DEPLOYMENT.md)** - Complete production deployment guide
+- **[COMPREHENSIVE_TESTING.md](./COMPREHENSIVE_TESTING.md)** - Testing verification
 - **[backend/README.md](./backend/README.md)** - Backend documentation
 - **[backend/QUICKSTART.md](./backend/QUICKSTART.md)** - Quick start guide
 - **[FRONTEND_SETUP.md](./FRONTEND_SETUP.md)** - Frontend setup guide

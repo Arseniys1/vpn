@@ -121,3 +121,8 @@ export const addTicketMessage = async (ticketId: string, message: string) => {
     body: JSON.stringify({ message }),
   });
 };
+
+// Referral API
+export const getReferralStats = async () => {
+  return apiCall('/users/referral-stats');
+};

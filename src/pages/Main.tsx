@@ -7,9 +7,10 @@ interface MainProps {
   subscription: UserSubscription;
   adminMessage?: string;
   isAdmin?: boolean;
+  userName?: string;
 }
 
-const Main: React.FC<MainProps> = ({ subscription, adminMessage, isAdmin }) => {
+const Main: React.FC<MainProps> = ({ subscription, adminMessage, isAdmin, userName = "Пользователь" }) => {
   const navigate = useNavigate();
 
   return (
@@ -21,7 +22,7 @@ const Main: React.FC<MainProps> = ({ subscription, adminMessage, isAdmin }) => {
           </div>
           <div>
             <div className="text-sm text-tg-hint">Добро пожаловать</div>
-            <div className="font-semibold text-tg-text">Пользователь</div>
+            <div className="font-semibold text-tg-text">{userName}</div>
           </div>
         </div>
       </div>

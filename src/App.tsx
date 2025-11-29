@@ -25,6 +25,7 @@ const App: React.FC = () => {
   const [tickets, setTickets] = useState<ExtendedTicket[]>([]);
   const [purchasePlan, setPurchasePlan] = useState<Plan | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState<string>("Пользователь");
 
   // Report State
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -54,6 +55,13 @@ const App: React.FC = () => {
       const userData = await api.getMe();
       setBalance(userData.balance || 0);
       setIsAdmin(userData.is_admin || false);
+      
+      // Set user name
+      if (userData.first_name) {
+        setUserName(userData.first_name);
+      } else if (userData.username) {
+        setUserName(userData.username);
+      }
       
       // Fetch subscription
       const subscription = await api.getMySubscription();
@@ -244,7 +252,7 @@ ${reportText}`,
     <HashRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<Main subscription={userSubscription} adminMessage={adminMessage} isAdmin={isAdmin} />} />
+          <Route index element={<Main subscription={userSubscription} adminMessage={adminMessage} isAdmin={isAdmin} userName={userName} />} />
           <Route path="servers" element={<Tunnels subscription={userSubscription} onReport={openReportModal} />} />
           <Route path="shop" element={<Shop balance={balance} subscription={userSubscription} onBuy={handleBuyPlanClick} onTopUp={handleTopUp} />} />
           <Route path="referrals" element={<Referrals />} />

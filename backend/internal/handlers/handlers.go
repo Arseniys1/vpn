@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -27,7 +28,7 @@ func NewHandlers(
 	db *database.DB,
 ) *Handlers {
 	return &Handlers{
-		UserHandler:         NewUserHandler(userService),
+		UserHandler:         NewUserHandler(userService, db),
 		SubscriptionHandler: NewSubscriptionHandler(subscriptionService, planService, userService),
 		ServerHandler:       NewServerHandler(db),
 		ConnectionHandler:   NewConnectionHandler(connectionService, userService),
@@ -39,7 +40,7 @@ func NewHandlers(
 func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string, db *database.DB) {
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "timestamp": time.Now().Unix()})
 	})
 
 	// Readiness check
@@ -69,6 +70,7 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string, db *database.DB) 
 			{
 				userRoutes.GET("/me", h.UserHandler.Me)
 				userRoutes.POST("/topup", h.UserHandler.TopUp)
+				userRoutes.GET("/referral-stats", h.UserHandler.GetReferralStats)
 			}
 
 			// Subscription routes

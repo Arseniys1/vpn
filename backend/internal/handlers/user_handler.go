@@ -1,22 +1,29 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
+	"xray-vpn-connect/internal/database"
 	"xray-vpn-connect/internal/middleware"
+	"xray-vpn-connect/internal/models"
 	"xray-vpn-connect/internal/services"
 )
 
 type UserHandler struct {
 	userService *services.UserService
+	db          *database.DB
 }
 
-func NewUserHandler(userService *services.UserService) *UserHandler {
-	return &UserHandler{userService: userService}
+func NewUserHandler(userService *services.UserService, db *database.DB) *UserHandler {
+	return &UserHandler{
+		userService: userService,
+		db:          db,
+	}
 }
 
 type MeResponse struct {
@@ -91,5 +98,43 @@ func (h *UserHandler) TopUp(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Balance updated successfully"})
+	// Get updated user
+	user, _ = h.userService.GetUserByTelegramID(telegramUserID.(int64))
+
+	c.JSON(http.StatusOK, gin.H{"new_balance": user.Balance})
+}
+
+// GetReferralStats returns referral statistics for the user
+func (h *UserHandler) GetReferralStats(c *gin.Context) {
+	telegramUserID, _ := c.Get("telegram_user_id")
+	user, err := h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Count total referrals
+	var totalReferrals int64
+	h.db.DB.Model(&models.User{}).Where("referred_by = ?", user.ID).Count(&totalReferrals)
+
+	// Count active referrals (users with active subscriptions)
+	var activeReferrals int64
+	h.db.DB.Table("users").
+		Joins("JOIN subscriptions ON users.id = subscriptions.user_id").
+		Where("users.referred_by = ? AND subscriptions.is_active = ?", user.ID, true).
+		Count(&activeReferrals)
+
+	// Calculate reward earned (10% of total)
+	rewardEarned := activeReferrals * 50
+
+	// Generate referral link
+	referralLink := fmt.Sprintf("https://t.me/YourBotUsername?start=%s", user.ReferralCode)
+
+	c.JSON(http.StatusOK, gin.H{
+		"referral_code":    user.ReferralCode,
+		"referral_link":    referralLink,
+		"total_referrals":  totalReferrals,
+		"active_referrals": activeReferrals,
+		"reward_earned":    rewardEarned,
+	})
 }

@@ -45,7 +45,18 @@ func (h *ConnectionHandler) CreateConnection(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, connection)
+	// Return connection with generated URLs
+	response := gin.H{
+		"id":               connection.ID,
+		"server_id":        connection.ServerID,
+		"config_url":       connection.ConnectionKey,
+		"subscription_url": connection.SubscriptionLink,
+		"is_active":        connection.IsActive,
+		"expires_at":       connection.ExpiresAt,
+		"created_at":       connection.CreatedAt,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *ConnectionHandler) GetMyConnections(c *gin.Context) {
@@ -81,4 +92,3 @@ func (h *ConnectionHandler) DeleteConnection(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Connection deleted successfully"})
 }
-
