@@ -154,7 +154,7 @@ func handleCreateConnection(db *database.DB, task queue.Task, panelService *serv
 	connectionKey := xray.GenerateConnectionKey(
 		server.Protocol,
 		clientUUID,
-		server.Host, // Use actual server host from config
+		"your-server-host", // This should come from server config
 		443,
 		fmt.Sprintf("%s-User", server.Country),
 	)

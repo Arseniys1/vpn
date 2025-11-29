@@ -68,7 +68,6 @@ type Server struct {
 	Name           string         `gorm:"uniqueIndex;not null" json:"name"`
 	Country        string         `gorm:"not null" json:"country"`
 	Flag           string         `gorm:"not null" json:"flag"`
-	Host           string         `gorm:"not null" json:"host"`                     // Server hostname or IP
 	Protocol       string         `gorm:"not null" json:"protocol"`                 // vless, vmess, trojan
 	Status         string         `gorm:"default:'online'" json:"status"`           // online, maintenance, crowded
 	AdminMessage   *string        `gorm:"type:text" json:"admin_message,omitempty"` // Admin message for users

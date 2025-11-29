@@ -96,7 +96,7 @@ const Tunnels: React.FC<TunnelsProps> = ({ subscription, onReport }) => {
     if (connection && connection.config_url) {
       return connection.config_url;
     }
-    return "";
+    return `${server.protocol}://${Math.random().toString(36).substr(2)}@${server.country.toLowerCase()}.vpn.com:443?security=reality&type=tcp&headerType=none#${server.country}-User1`;
   };
   
   const getSubLink = (server: ServerLocation) => {
@@ -220,3 +220,4 @@ const Tunnels: React.FC<TunnelsProps> = ({ subscription, onReport }) => {
 };
 
 export default Tunnels;
+

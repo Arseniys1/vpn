@@ -27,7 +27,7 @@ func (h *ServerHandler) GetServers(c *gin.Context) {
 		return
 	}
 
-	// Transform to response format with realistic ping calculation
+	// Transform to response format with ping (mock for now)
 	type ServerResponse struct {
 		ID           string  `json:"id"`
 		Country      string  `json:"country"`
