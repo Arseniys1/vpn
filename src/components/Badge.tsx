@@ -21,3 +21,4 @@ const Badge: React.FC<BadgeProps> = ({ color, text }) => {
 };
 
 export default Badge;
+

@@ -63,3 +63,4 @@ const Shop: React.FC<ShopProps> = ({ balance, subscription, onBuy, onTopUp }) =>
 };
 
 export default Shop;
+

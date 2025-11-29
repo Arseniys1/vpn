@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TgCard from '../components/TgCard';
@@ -70,3 +69,4 @@ const Instructions: React.FC = () => {
 };
 
 export default Instructions;
+

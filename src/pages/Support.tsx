@@ -251,3 +251,4 @@ const Support: React.FC<SupportProps> = ({ tickets, onCreateTicket }) => {
 };
 
 export default Support;
+

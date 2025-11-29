@@ -13,3 +13,4 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({ title, action }) => (
 );
 
 export default SectionHeader;
+

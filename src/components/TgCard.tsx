@@ -16,3 +16,4 @@ const TgCard: React.FC<TgCardProps> = ({ children, className = "", onClick }) =>
 );
 
 export default TgCard;
+

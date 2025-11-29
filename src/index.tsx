@@ -1,6 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import './styles/index.css';
+
+// Import Font Awesome CSS
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
 // Extend window interface for Telegram
 declare global {
@@ -17,9 +21,9 @@ declare global {
           selectionChanged: () => void;
         };
         showPopup: (params: {
-            title?: string;
-            message: string;
-            buttons?: {id?: string; type?: 'default' | 'ok' | 'close' | 'cancel' | 'destructive', text?: string}[];
+          title?: string;
+          message: string;
+          buttons?: {id?: string; type?: 'default' | 'ok' | 'close' | 'cancel' | 'destructive', text?: string}[];
         }, callback?: (id: string) => void) => void;
       };
     };
