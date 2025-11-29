@@ -16,6 +16,7 @@ type Handlers struct {
 	ServerHandler       *ServerHandler
 	ConnectionHandler   *ConnectionHandler
 	AdminHandler        *AdminHandler
+	SupportHandler      *SupportHandler
 }
 
 func NewHandlers(
@@ -31,6 +32,7 @@ func NewHandlers(
 		ServerHandler:       NewServerHandler(db),
 		ConnectionHandler:   NewConnectionHandler(connectionService, userService),
 		AdminHandler:        NewAdminHandler(db),
+		SupportHandler:      NewSupportHandler(db, userService),
 	}
 }
 
@@ -83,6 +85,15 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string, db *database.DB) 
 				connectionRoutes.GET("", h.ConnectionHandler.GetMyConnections)
 				connectionRoutes.POST("", h.ConnectionHandler.CreateConnection)
 				connectionRoutes.DELETE("/:id", h.ConnectionHandler.DeleteConnection)
+			}
+
+			// Support routes
+			supportRoutes := protected.Group("/support")
+			{
+				supportRoutes.POST("/tickets", h.SupportHandler.CreateTicket)
+				supportRoutes.GET("/tickets", h.SupportHandler.GetMyTickets)
+				supportRoutes.GET("/tickets/:id", h.SupportHandler.GetTicket)
+				supportRoutes.POST("/tickets/:id/messages", h.SupportHandler.AddMessage)
 			}
 
 			// Admin routes (require admin role)
