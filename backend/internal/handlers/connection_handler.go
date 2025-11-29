@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
+	"xray-vpn-connect/internal/models"
 	"xray-vpn-connect/internal/services"
 )
 
@@ -24,8 +25,32 @@ func NewConnectionHandler(connectionService *services.ConnectionService, userSer
 }
 
 func (h *ConnectionHandler) CreateConnection(c *gin.Context) {
-	telegramUserID, _ := c.Get("telegram_user_id")
-	user, err := h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	// Check authentication method
+	authMethod, _ := c.Get("auth_method")
+
+	var user *models.User
+	var err error
+
+	switch authMethod {
+	case "telegram":
+		telegramUserID, _ := c.Get("telegram_user_id")
+		user, err = h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	case "browser":
+		// For browser access, get user by ID
+		userID, _ := c.Get("user_id")
+		if userIDStr, ok := userID.(string); ok && userIDStr == "browser_user_123" {
+			// Mock user for demonstration
+			user = &models.User{
+				ID:         uuid.New(),
+				TelegramID: 123456789,
+				FirstName:  "Browser",
+			}
+		}
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
+		return
+	}
+
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -73,8 +98,32 @@ func (h *ConnectionHandler) CreateConnection(c *gin.Context) {
 }
 
 func (h *ConnectionHandler) GetMyConnections(c *gin.Context) {
-	telegramUserID, _ := c.Get("telegram_user_id")
-	user, err := h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	// Check authentication method
+	authMethod, _ := c.Get("auth_method")
+
+	var user *models.User
+	var err error
+
+	switch authMethod {
+	case "telegram":
+		telegramUserID, _ := c.Get("telegram_user_id")
+		user, err = h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	case "browser":
+		// For browser access, get user by ID
+		userID, _ := c.Get("user_id")
+		if userIDStr, ok := userID.(string); ok && userIDStr == "browser_user_123" {
+			// Mock user for demonstration
+			user = &models.User{
+				ID:         uuid.New(),
+				TelegramID: 123456789,
+				FirstName:  "Browser",
+			}
+		}
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
+		return
+	}
+
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return

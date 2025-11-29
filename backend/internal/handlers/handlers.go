@@ -14,6 +14,7 @@ import (
 type Handlers struct {
 	UserHandler         *UserHandler
 	SubscriptionHandler *SubscriptionHandler
+	PlanService         *services.PlanService
 	ServerHandler       *ServerHandler
 	ConnectionHandler   *ConnectionHandler
 	AdminHandler        *AdminHandler
@@ -30,6 +31,7 @@ func NewHandlers(
 	return &Handlers{
 		UserHandler:         NewUserHandler(userService, db),
 		SubscriptionHandler: NewSubscriptionHandler(subscriptionService, planService, userService),
+		PlanService:         planService,
 		ServerHandler:       NewServerHandler(db),
 		ConnectionHandler:   NewConnectionHandler(connectionService, userService),
 		AdminHandler:        NewAdminHandler(db),
@@ -54,16 +56,32 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string, db *database.DB) 
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
 
+	// Authentication endpoints
+	auth := r.Group("/auth")
+	{
+		// Telegram OAuth endpoint for browser access
+		auth.GET("/telegram", func(c *gin.Context) {
+			// In a real implementation, this would redirect to Telegram OAuth
+			// For now, we'll return instructions
+			c.JSON(http.StatusOK, gin.H{
+				"message":      "To authenticate via Telegram, open this app in Telegram WebApp",
+				"instructions": "This endpoint would normally redirect to Telegram OAuth flow",
+			})
+		})
+	}
+
 	api := r.Group("/api/v1")
 	// Apply rate limiting to all API routes
 	api.Use(middleware.RateLimit(10, 20)) // 10 requests per second, burst of 20
+	// Apply access detection middleware
+	api.Use(middleware.DetectAccessMethod())
 	{
 		// Public routes
 		api.GET("/servers", h.ServerHandler.GetServers)
 
-		// Protected routes (require Telegram auth)
+		// Protected routes (require authentication)
 		protected := api.Group("")
-		protected.Use(middleware.VerifyTelegramWebApp(botToken))
+		protected.Use(middleware.HybridAuth(botToken))
 		{
 			// User routes
 			userRoutes := protected.Group("/users")

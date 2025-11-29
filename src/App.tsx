@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import Modal from './components/Modal';
 import { Plan, UserSubscription, ServerLocation, OSType } from './types';
 import * as api from './services/api';
+import { initializeTelegramWebApp, isAuthenticated, getAuthMethod } from './services/authService';
 
 // Pages
 import Main from './pages/Main';
@@ -35,15 +36,32 @@ const App: React.FC = () => {
   const [reportProvider, setReportProvider] = useState("");
   const [reportRegion, setReportRegion] = useState("");
   
-  // Initialize Telegram WebApp
+  // Auth State
+  const [isAuthenticatedState, setIsAuthenticatedState] = useState(false);
+  const [authMethod, setAuthMethod] = useState<'telegram' | 'browser' | 'none'>('none');
+  
+  // Initialize Telegram WebApp and check authentication
   useEffect(() => {
-    if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.ready();
-        window.Telegram.WebApp.expand();
-        window.Telegram.WebApp.setHeaderColor('#0e1621'); 
-        window.Telegram.WebApp.setBackgroundColor('#0e1621');
+    // Initialize Telegram WebApp if in Telegram
+    initializeTelegramWebApp();
+    
+    // Check authentication status
+    const authStatus = isAuthenticated();
+    const method = getAuthMethod();
+    
+    setIsAuthenticatedState(authStatus);
+    setAuthMethod(method);
+    
+    if (authStatus) {
+      loadUserData();
+    } else {
+      // If not authenticated, redirect to auth page (for browser)
+      if (method === 'none' && !window.Telegram?.WebApp) {
+        window.location.href = '/auth/telegram';
+      } else {
+        setLoading(false);
+      }
     }
-    loadUserData();
   }, []);
 
   // Load user data from backend
@@ -248,6 +266,24 @@ ${reportText}`,
     );
   }
 
+  // Show auth screen if not authenticated in browser
+  if (!isAuthenticatedState && authMethod === 'none' && !window.Telegram?.WebApp) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-tg-bg">
+        <div className="text-center p-6">
+          <h1 className="text-2xl font-bold text-tg-text mb-4">Добро пожаловать</h1>
+          <p className="text-tg-hint mb-6">Пожалуйста, авторизуйтесь через Telegram</p>
+          <a 
+            href="/auth/telegram" 
+            className="bg-tg-blue text-white py-3 px-6 rounded-xl font-semibold inline-block"
+          >
+            Авторизоваться через Telegram
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <HashRouter>
       <Routes>
@@ -358,4 +394,3 @@ ${reportText}`,
 };
 
 export default App;
-

@@ -31,8 +31,32 @@ type CreateTicketRequest struct {
 }
 
 func (h *SupportHandler) CreateTicket(c *gin.Context) {
-	telegramUserID, _ := c.Get("telegram_user_id")
-	user, err := h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	// Check authentication method
+	authMethod, _ := c.Get("auth_method")
+
+	var user *models.User
+	var err error
+
+	switch authMethod {
+	case "telegram":
+		telegramUserID, _ := c.Get("telegram_user_id")
+		user, err = h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	case "browser":
+		// For browser access, get user by ID
+		userID, _ := c.Get("user_id")
+		if userIDStr, ok := userID.(string); ok && userIDStr == "browser_user_123" {
+			// Mock user for demonstration
+			user = &models.User{
+				ID:         uuid.New(),
+				TelegramID: 123456789,
+				FirstName:  "Browser",
+			}
+		}
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
+		return
+	}
+
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -62,8 +86,32 @@ func (h *SupportHandler) CreateTicket(c *gin.Context) {
 }
 
 func (h *SupportHandler) GetMyTickets(c *gin.Context) {
-	telegramUserID, _ := c.Get("telegram_user_id")
-	user, err := h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	// Check authentication method
+	authMethod, _ := c.Get("auth_method")
+
+	var user *models.User
+	var err error
+
+	switch authMethod {
+	case "telegram":
+		telegramUserID, _ := c.Get("telegram_user_id")
+		user, err = h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	case "browser":
+		// For browser access, get user by ID
+		userID, _ := c.Get("user_id")
+		if userIDStr, ok := userID.(string); ok && userIDStr == "browser_user_123" {
+			// Mock user for demonstration
+			user = &models.User{
+				ID:         uuid.New(),
+				TelegramID: 123456789,
+				FirstName:  "Browser",
+			}
+		}
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
+		return
+	}
+
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -89,9 +137,33 @@ func (h *SupportHandler) GetTicket(c *gin.Context) {
 		return
 	}
 
-	telegramUserID, _ := c.Get("telegram_user_id")
-	user, err := h.userService.GetUserByTelegramID(telegramUserID.(int64))
-	if err != nil {
+	// Check authentication method
+	authMethod, _ := c.Get("auth_method")
+
+	var user *models.User
+	var userErr error
+
+	switch authMethod {
+	case "telegram":
+		telegramUserID, _ := c.Get("telegram_user_id")
+		user, userErr = h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	case "browser":
+		// For browser access, get user by ID
+		userID, _ := c.Get("user_id")
+		if userIDStr, ok := userID.(string); ok && userIDStr == "browser_user_123" {
+			// Mock user for demonstration
+			user = &models.User{
+				ID:         uuid.New(),
+				TelegramID: 123456789,
+				FirstName:  "Browser",
+			}
+		}
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
+		return
+	}
+
+	if userErr != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
@@ -118,9 +190,33 @@ func (h *SupportHandler) AddMessage(c *gin.Context) {
 		return
 	}
 
-	telegramUserID, _ := c.Get("telegram_user_id")
-	user, err := h.userService.GetUserByTelegramID(telegramUserID.(int64))
-	if err != nil {
+	// Check authentication method
+	authMethod, _ := c.Get("auth_method")
+
+	var user *models.User
+	var userErr error
+
+	switch authMethod {
+	case "telegram":
+		telegramUserID, _ := c.Get("telegram_user_id")
+		user, userErr = h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	case "browser":
+		// For browser access, get user by ID
+		userID, _ := c.Get("user_id")
+		if userIDStr, ok := userID.(string); ok && userIDStr == "browser_user_123" {
+			// Mock user for demonstration
+			user = &models.User{
+				ID:         uuid.New(),
+				TelegramID: 123456789,
+				FirstName:  "Browser",
+			}
+		}
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
+		return
+	}
+
+	if userErr != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}

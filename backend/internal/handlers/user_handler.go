@@ -40,22 +40,66 @@ type MeResponse struct {
 }
 
 func (h *UserHandler) Me(c *gin.Context) {
-	telegramUserID, exists := c.Get("telegram_user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+	// Check authentication method
+	authMethod, _ := c.Get("auth_method")
+
+	var user *models.User
+	var err error
+
+	switch authMethod {
+	case "telegram":
+		// Telegram WebApp authentication
+		telegramUserID, exists := c.Get("telegram_user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
+		telegramUser, _ := c.Get("telegram_user")
+		userData := telegramUser.(middleware.TelegramUser)
+
+		user, err = h.userService.GetOrCreateUser(
+			telegramUserID.(int64),
+			userData.Username,
+			userData.FirstName,
+			userData.LastName,
+			userData.LanguageCode,
+		)
+	case "browser":
+		// Browser authentication
+		// In a real implementation, you would fetch user data based on the authenticated user
+		// For now, we'll return a mock user or handle this properly
+		userID, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
+		// For demonstration, we'll try to get a user by ID
+		// In a real implementation, you would have proper user lookup
+		if userIDStr, ok := userID.(string); ok && userIDStr == "browser_user_123" {
+			// Return a mock user for demonstration
+			// In a real implementation, fetch from database
+			user = &models.User{
+				ID:           uuid.New(),
+				TelegramID:   123456789,
+				FirstName:    "Browser",
+				LastName:     nil,
+				Username:     nil,
+				Balance:      1000,
+				ReferralCode: "browser123",
+				IsAdmin:      false,
+				IsActive:     true,
+			}
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+			return
+		}
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
 		return
 	}
 
-	telegramUser, _ := c.Get("telegram_user")
-	userData := telegramUser.(middleware.TelegramUser)
-
-	user, err := h.userService.GetOrCreateUser(
-		telegramUserID.(int64),
-		userData.Username,
-		userData.FirstName,
-		userData.LastName,
-		userData.LanguageCode,
-	)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get or create user")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user"})
@@ -79,8 +123,33 @@ func (h *UserHandler) Me(c *gin.Context) {
 }
 
 func (h *UserHandler) TopUp(c *gin.Context) {
-	telegramUserID, _ := c.Get("telegram_user_id")
-	user, err := h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	// Check authentication method
+	authMethod, _ := c.Get("auth_method")
+
+	var user *models.User
+	var err error
+
+	switch authMethod {
+	case "telegram":
+		telegramUserID, _ := c.Get("telegram_user_id")
+		user, err = h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	case "browser":
+		// For browser access, get user by ID
+		userID, _ := c.Get("user_id")
+		if userIDStr, ok := userID.(string); ok && userIDStr == "browser_user_123" {
+			// Mock user for demonstration
+			user = &models.User{
+				ID:         uuid.New(),
+				TelegramID: 123456789,
+				FirstName:  "Browser",
+				Balance:    1000,
+			}
+		}
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
+		return
+	}
+
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -100,15 +169,47 @@ func (h *UserHandler) TopUp(c *gin.Context) {
 	}
 
 	// Get updated user
-	user, _ = h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	switch authMethod {
+	case "telegram":
+		telegramUserID, _ := c.Get("telegram_user_id")
+		user, _ = h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	case "browser":
+		// For browser access, mock the updated user
+		user.Balance += req.Amount
+	}
 
 	c.JSON(http.StatusOK, gin.H{"new_balance": user.Balance})
 }
 
 // GetReferralStats returns referral statistics for the user
 func (h *UserHandler) GetReferralStats(c *gin.Context) {
-	telegramUserID, _ := c.Get("telegram_user_id")
-	user, err := h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	// Check authentication method
+	authMethod, _ := c.Get("auth_method")
+
+	var user *models.User
+	var err error
+
+	switch authMethod {
+	case "telegram":
+		telegramUserID, _ := c.Get("telegram_user_id")
+		user, err = h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	case "browser":
+		// For browser access, get user by ID
+		userID, _ := c.Get("user_id")
+		if userIDStr, ok := userID.(string); ok && userIDStr == "browser_user_123" {
+			// Mock user for demonstration
+			user = &models.User{
+				ID:           uuid.New(),
+				TelegramID:   123456789,
+				FirstName:    "Browser",
+				ReferralCode: "browser123",
+			}
+		}
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
+		return
+	}
+
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
