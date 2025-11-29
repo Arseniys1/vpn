@@ -40,7 +40,7 @@ const Admin: React.FC = () => {
       {/* Tab Content */}
       <div className="px-4">
         {activeTab === 'stats' && <StatsTab />}
-        {activeTab === 'servers' && <ServersTab />}
+        {activeTab === 'servers' && <ServerTab />}
         {activeTab === 'users' && <UsersTab />}
         {activeTab === 'plans' && <PlansTab />}
         {activeTab === 'tickets' && <TicketsTab />}
@@ -129,16 +129,50 @@ const StatsTab: React.FC = () => {
   );
 };
 
+interface Server {
+  id: string;
+  name: string;
+  country: string;
+  flag: string;
+  protocol: string;
+  status: string;
+  admin_message?: string;
+  max_connections: number;
+  host: string;
+  xray_panel_id: string;
+  inbound_id?: number;
+  is_user_specific: boolean;
+}
+
 // Servers Tab Component
-const ServersTab: React.FC = () => {
-  const [servers, setServers] = useState<any[]>([]);
+const ServerTab: React.FC = () => {
+  const [servers, setServers] = useState<Server[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingServer, setEditingServer] = useState<string | null>(null);
   const [isAddingServer, setIsAddingServer] = useState(false);
-  const [newServer, setNewServer] = useState({ name: '', country: '', flag: '', status: 'online', protocol: 'vless', admin_message: '', max_connections: 1000 });
+  const [editingServer, setEditingServer] = useState<string | null>(null);
+  const [xrayPanels, setXrayPanels] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [showUserSelector, setShowUserSelector] = useState(false);
+  
+  const [newServer, setNewServer] = useState({
+    name: '',
+    country: '',
+    flag: '',
+    protocol: 'vless',
+    status: 'online',
+    admin_message: '',
+    max_connections: 1000,
+    host: '',
+    xray_panel_id: '',
+    inbound_id: 0,
+    is_user_specific: false,
+    user_ids: [] as string[],
+  });
 
   useEffect(() => {
     loadServers();
+    loadXrayPanels();
+    loadAllUsers();
   }, []);
 
   const loadServers = async () => {
@@ -154,25 +188,53 @@ const ServersTab: React.FC = () => {
     }
   };
 
-  const handleSaveServer = async (id: string, updatedData: any) => {
+  const loadXrayPanels = async () => {
     try {
-      await adminApi.updateServer(id, {
-        name: updatedData.name,
-        country: updatedData.country,
-        flag: updatedData.flag,
-        protocol: updatedData.protocol,
-        status: updatedData.status,
-        admin_message: updatedData.admin_message || undefined,
-        max_connections: updatedData.max_connections || 1000
+      const data = await adminApi.getAllXrayPanels();
+      setXrayPanels(data);
+    } catch (error) {
+      console.error('Failed to load Xray panels:', error);
+      alert('Ошибка загрузки Xray панелей');
+    }
+  };
+
+  const loadAllUsers = async () => {
+    try {
+      const data = await adminApi.getAllUsers({ limit: 0 });
+      setUsers(data.users);
+    } catch (error) {
+      console.error('Failed to load all users:', error);
+      alert('Ошибка загрузки пользователей');
+    }
+  };
+
+  const handleAddServer = async () => {
+    if (!newServer.name || !newServer.country || !newServer.host || !newServer.xray_panel_id) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const response = await adminApi.createServer(newServer);
+      setServers([...servers, response]);
+      setIsAddingServer(false);
+      setNewServer({
+        name: '',
+        country: '',
+        flag: '',
+        protocol: 'vless',
+        status: 'online',
+        admin_message: '',
+        max_connections: 1000,
+        host: '',
+        xray_panel_id: '',
+        inbound_id: 0,
+        is_user_specific: false,
+        user_ids: [],
       });
-      await loadServers();
-      setEditingServer(null);
-      if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-      }
-    } catch (error: any) {
-      console.error('Failed to update server:', error);
-      alert('Ошибка обновления сервера: ' + (error.message || 'Неизвестная ошибка'));
+    } catch (error) {
+      console.error('Failed to add server:', error);
+      alert('Failed to add server');
     }
   };
 
@@ -180,51 +242,24 @@ const ServersTab: React.FC = () => {
     if (confirm('Вы уверены, что хотите удалить этот сервер?')) {
       try {
         await adminApi.deleteServer(id);
-        await loadServers();
-        if (window.Telegram?.WebApp?.HapticFeedback) {
-          window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-        }
-      } catch (error: any) {
+        setServers(servers.filter(server => server.id !== id));
+      } catch (error) {
         console.error('Failed to delete server:', error);
-        alert('Ошибка удаления сервера: ' + (error.message || 'Неизвестная ошибка'));
+        alert('Ошибка удаления сервера');
       }
     }
   };
 
-  const handleAddServer = async () => {
-    if (!newServer.name || !newServer.country || !newServer.flag) {
-      alert('Заполните все обязательные поля');
-      return;
-    }
+  const handleSaveServer = async (id: string, data: any) => {
     try {
-      await adminApi.createServer({
-        name: newServer.name,
-        country: newServer.country,
-        flag: newServer.flag,
-        protocol: newServer.protocol,
-        status: newServer.status,
-        admin_message: newServer.admin_message || undefined,
-        max_connections: newServer.max_connections
-      });
-      await loadServers();
-      setNewServer({ name: '', country: '', flag: '', status: 'online', protocol: 'vless', admin_message: '', max_connections: 1000 });
-      setIsAddingServer(false);
-      if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-      }
-    } catch (error: any) {
-      console.error('Failed to create server:', error);
-      alert('Ошибка создания сервера: ' + (error.message || 'Неизвестная ошибка'));
+      const response = await adminApi.updateServer(id, data);
+      setServers(servers.map(server => server.id === id ? response : server));
+      setEditingServer(null);
+    } catch (error) {
+      console.error('Failed to update server:', error);
+      alert('Failed to update server');
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-tg-hint">Загрузка...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-3">
@@ -239,6 +274,8 @@ const ServersTab: React.FC = () => {
       {isAddingServer && (
         <div className="bg-tg-secondary rounded-xl p-4 space-y-3">
           <h3 className="font-semibold text-tg-text mb-2">Новый сервер</h3>
+          
+          {/* Basic Server Info */}
           <input
             className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
             placeholder="Название (DE-1)"
@@ -257,6 +294,14 @@ const ServersTab: React.FC = () => {
             value={newServer.flag}
             onChange={(e) => setNewServer({ ...newServer, flag: e.target.value })}
           />
+          <input
+            className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+            placeholder="Хост/IP сервера"
+            value={newServer.host}
+            onChange={(e) => setNewServer({ ...newServer, host: e.target.value })}
+          />
+          
+          {/* Protocol and Xray Settings */}
           <select
             className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
             value={newServer.protocol}
@@ -266,6 +311,49 @@ const ServersTab: React.FC = () => {
             <option value="vmess">VMESS</option>
             <option value="trojan">Trojan</option>
           </select>
+          
+          <select
+            className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+            value={newServer.xray_panel_id}
+            onChange={(e) => setNewServer({ ...newServer, xray_panel_id: e.target.value })}
+          >
+            <option value="">Выберите Xray панель</option>
+            {xrayPanels.map(panel => (
+              <option key={panel.id} value={panel.id}>{panel.name}</option>
+            ))}
+          </select>
+          
+          <input
+            type="number"
+            className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+            placeholder="Inbound ID (опционально)"
+            value={newServer.inbound_id || ''}
+            onChange={(e) => setNewServer({ ...newServer, inbound_id: parseInt(e.target.value) || 0 })}
+          />
+          
+          {/* User-Specific Settings */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="userSpecific"
+              checked={newServer.is_user_specific}
+              onChange={(e) => setNewServer({ ...newServer, is_user_specific: e.target.checked })}
+            />
+            <label htmlFor="userSpecific" className="text-sm text-tg-text">
+              Сервер для конкретных пользователей
+            </label>
+          </div>
+          
+          {newServer.is_user_specific && (
+            <button
+              onClick={() => setShowUserSelector(true)}
+              className="w-full bg-tg-blue/10 text-tg-blue py-2 rounded-lg text-sm font-medium"
+            >
+              Выбрать пользователей ({newServer.user_ids.length})
+            </button>
+          )}
+          
+          {/* Other Settings */}
           <input
             type="number"
             className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
@@ -280,6 +368,7 @@ const ServersTab: React.FC = () => {
             value={newServer.admin_message}
             onChange={(e) => setNewServer({ ...newServer, admin_message: e.target.value })}
           />
+          
           <div className="flex gap-2">
             <button
               onClick={handleAddServer}
@@ -297,6 +386,18 @@ const ServersTab: React.FC = () => {
         </div>
       )}
 
+      {showUserSelector && (
+        <UserSelectorModal
+          selectedUsers={newServer.user_ids}
+          onConfirm={(userIds) => {
+            setNewServer({ ...newServer, user_ids: userIds });
+            setShowUserSelector(false);
+          }}
+          onCancel={() => setShowUserSelector(false)}
+          allUsers={users}
+        />
+      )}
+
       {servers.map(server => (
         <div key={server.id} className="bg-tg-secondary rounded-xl overflow-hidden">
           {editingServer === server.id ? (
@@ -304,6 +405,9 @@ const ServersTab: React.FC = () => {
               server={server}
               onSave={(data) => handleSaveServer(server.id, data)}
               onCancel={() => setEditingServer(null)}
+              xrayPanels={xrayPanels}
+              allUsers={users}
+              onShowUserSelector={setShowUserSelector}
             />
           ) : (
             <div className="p-4">
@@ -312,6 +416,7 @@ const ServersTab: React.FC = () => {
                 <div className="flex-1">
                   <div className="font-semibold text-tg-text">{server.country}</div>
                   <div className="text-xs text-tg-hint">{server.name} • {server.protocol.toUpperCase()}</div>
+                  <div className="text-xs text-tg-hint">{server.host}</div>
                 </div>
                 <div className={`px-2 py-1 rounded text-xs font-bold ${
                   server.status === 'online' ? 'bg-tg-green/10 text-tg-green' : 'bg-tg-red/10 text-tg-red'
@@ -319,12 +424,21 @@ const ServersTab: React.FC = () => {
                   {server.status}
                 </div>
               </div>
+              
+              {server.is_user_specific && (
+                <div className="text-xs text-tg-blue bg-tg-blue/10 rounded-lg p-2 mb-2">
+                  <i className="fas fa-user-lock mr-1"></i>
+                  Для конкретных пользователей
+                </div>
+              )}
+              
               {server.admin_message && (
                 <div className="text-xs text-tg-blue bg-tg-blue/10 rounded-lg p-2 mb-2">
                   <i className="fas fa-info-circle mr-1"></i>
                   {server.admin_message}
                 </div>
               )}
+              
               <div className="flex gap-2">
                 <button
                   onClick={() => setEditingServer(server.id)}
@@ -349,12 +463,64 @@ const ServersTab: React.FC = () => {
   );
 };
 
-const ServerEditForm: React.FC<{ server: any; onSave: (data: any) => void; onCancel: () => void }> = ({ server, onSave, onCancel }) => {
-  const [formData, setFormData] = useState(server);
+const ServerEditForm: React.FC<{ 
+  server: any; 
+  onSave: (data: any) => void; 
+  onCancel: () => void;
+  xrayPanels: any[];
+  allUsers: any[];
+  onShowUserSelector: (show: boolean) => void;
+}> = ({ server, onSave, onCancel, xrayPanels, allUsers, onShowUserSelector }) => {
+  const [formData, setFormData] = useState({
+    ...server,
+    xray_panel_id: server.xray_panel_id || '',
+    inbound_id: server.inbound_id || 0,
+    is_user_specific: server.is_user_specific || false,
+    user_ids: [] as string[],
+  });
+  
+  const [loadingUsers, setLoadingUsers] = useState(true);
+
+  // Load assigned users when editing a user-specific server
+  useEffect(() => {
+    if (formData.is_user_specific) {
+      const loadAssignedUsers = async () => {
+        try {
+          const response = await adminApi.getServerUsers(server.id);
+          setFormData(prev => ({
+            ...prev,
+            user_ids: response.users.map((u: any) => u.id)
+          }));
+        } catch (error) {
+          console.error('Failed to load server users:', error);
+        } finally {
+          setLoadingUsers(false);
+        }
+      };
+      
+      loadAssignedUsers();
+    } else {
+      setLoadingUsers(false);
+    }
+  }, [formData.is_user_specific, server.id]);
+
+  const handleSubmit = () => {
+    onSave(formData);
+  };
+
+  if (loadingUsers) {
+    return (
+      <div className="p-4">
+        <div className="text-tg-hint">Загрузка пользователей...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 space-y-3">
       <h3 className="font-semibold text-tg-text mb-2">Редактировать сервер</h3>
+      
+      {/* Basic Server Info */}
       <input
         className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
         placeholder="Название"
@@ -373,6 +539,66 @@ const ServerEditForm: React.FC<{ server: any; onSave: (data: any) => void; onCan
         value={formData.flag}
         onChange={(e) => setFormData({ ...formData, flag: e.target.value })}
       />
+      <input
+        className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+        placeholder="Хост/IP сервера"
+        value={formData.host}
+        onChange={(e) => setFormData({ ...formData, host: e.target.value })}
+      />
+      
+      {/* Protocol and Xray Settings */}
+      <select
+        className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+        value={formData.protocol}
+        onChange={(e) => setFormData({ ...formData, protocol: e.target.value })}
+      >
+        <option value="vless">VLESS</option>
+        <option value="vmess">VMESS</option>
+        <option value="trojan">Trojan</option>
+      </select>
+      
+      <select
+        className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+        value={formData.xray_panel_id}
+        onChange={(e) => setFormData({ ...formData, xray_panel_id: e.target.value })}
+      >
+        <option value="">Выберите Xray панель</option>
+        {xrayPanels.map(panel => (
+          <option key={panel.id} value={panel.id}>{panel.name}</option>
+        ))}
+      </select>
+      
+      <input
+        type="number"
+        className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+        placeholder="Inbound ID (опционально)"
+        value={formData.inbound_id || ''}
+        onChange={(e) => setFormData({ ...formData, inbound_id: parseInt(e.target.value) || 0 })}
+      />
+      
+      {/* User-Specific Settings */}
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="editUserSpecific"
+          checked={formData.is_user_specific}
+          onChange={(e) => setFormData({ ...formData, is_user_specific: e.target.checked })}
+        />
+        <label htmlFor="editUserSpecific" className="text-sm text-tg-text">
+          Сервер для конкретных пользователей
+        </label>
+      </div>
+      
+      {formData.is_user_specific && (
+        <button
+          onClick={() => onShowUserSelector(true)}
+          className="w-full bg-tg-blue/10 text-tg-blue py-2 rounded-lg text-sm font-medium"
+        >
+          Выбрать пользователей ({formData.user_ids.length})
+        </button>
+      )}
+      
+      {/* Other Settings */}
       <select
         className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
         value={formData.status}
@@ -382,6 +608,15 @@ const ServerEditForm: React.FC<{ server: any; onSave: (data: any) => void; onCan
         <option value="maintenance">Maintenance</option>
         <option value="crowded">Crowded</option>
       </select>
+      
+      <input
+        type="number"
+        className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+        placeholder="Max connections"
+        value={formData.max_connections}
+        onChange={(e) => setFormData({ ...formData, max_connections: parseInt(e.target.value) || 1000 })}
+      />
+      
       <textarea
         className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text resize-none"
         placeholder="Сообщение администратора"
@@ -389,9 +624,10 @@ const ServerEditForm: React.FC<{ server: any; onSave: (data: any) => void; onCan
         value={formData.admin_message || ''}
         onChange={(e) => setFormData({ ...formData, admin_message: e.target.value })}
       />
+      
       <div className="flex gap-2">
         <button
-          onClick={() => onSave(formData)}
+          onClick={handleSubmit}
           className="flex-1 bg-tg-blue text-white py-2 rounded-lg font-medium"
         >
           Сохранить
@@ -402,6 +638,93 @@ const ServerEditForm: React.FC<{ server: any; onSave: (data: any) => void; onCan
         >
           Отмена
         </button>
+      </div>
+    </div>
+  );
+};
+
+// User Selector Modal Component
+const UserSelectorModal: React.FC<{
+  selectedUsers: string[];
+  onConfirm: (userIds: string[]) => void;
+  onCancel: () => void;
+  allUsers: any[];
+}> = ({ selectedUsers, onConfirm, onCancel, allUsers }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selected, setSelected] = useState<string[]>(selectedUsers);
+  
+  const filteredUsers = allUsers.filter(user => 
+    user.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (user.username && user.username.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    user.telegram_id.toString().includes(searchQuery)
+  );
+
+  const toggleUser = (userId: string) => {
+    if (selected.includes(userId)) {
+      setSelected(selected.filter(id => id !== userId));
+    } else {
+      setSelected([...selected, userId]);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-tg-bg rounded-xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-tg-separator">
+          <h3 className="font-semibold text-tg-text">Выбрать пользователей</h3>
+        </div>
+        
+        <div className="p-4">
+          <input
+            className="w-full bg-tg-secondary border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+            placeholder="Поиск по имени, юзернейму или ID"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        
+        <div className="flex-1 overflow-y-auto">
+          {filteredUsers.map(user => (
+            <div 
+              key={user.id} 
+              className="flex items-center gap-3 p-4 border-b border-tg-separator cursor-pointer hover:bg-tg-secondary"
+              onClick={() => toggleUser(user.id)}
+            >
+              <div className={`w-5 h-5 rounded border flex items-center justify-center ${
+                selected.includes(user.id) 
+                  ? 'bg-tg-blue border-tg-blue' 
+                  : 'border-tg-separator'
+              }`}>
+                {selected.includes(user.id) && (
+                  <i className="fas fa-check text-white text-xs"></i>
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="font-medium text-tg-text">
+                  {user.first_name} {user.last_name || ''}
+                </div>
+                <div className="text-xs text-tg-hint">
+                  @{user.username || 'N/A'} • ID: {user.telegram_id}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <div className="p-4 border-t border-tg-separator flex gap-2">
+          <button
+            onClick={() => onConfirm(selected)}
+            className="flex-1 bg-tg-blue text-white py-2 rounded-lg font-medium"
+          >
+            Готово ({selected.length})
+          </button>
+          <button
+            onClick={onCancel}
+            className="flex-1 bg-tg-bg text-tg-hint py-2 rounded-lg font-medium"
+          >
+            Отмена
+          </button>
+        </div>
       </div>
     </div>
   );

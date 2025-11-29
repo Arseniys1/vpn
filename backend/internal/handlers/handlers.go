@@ -110,6 +110,10 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string, db *database.DB) 
 				adminRoutes.POST("/servers", h.AdminHandler.CreateServer)
 				adminRoutes.PUT("/servers/:id", h.AdminHandler.UpdateServer)
 				adminRoutes.DELETE("/servers/:id", h.AdminHandler.DeleteServer)
+				adminRoutes.GET("/servers/:id/users", h.AdminHandler.GetServerUsers)
+
+				// Xray panel management
+				adminRoutes.GET("/xray-panels", h.AdminHandler.GetAllXrayPanels)
 
 				// User management
 				adminRoutes.GET("/users", h.AdminHandler.GetAllUsers)

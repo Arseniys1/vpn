@@ -63,6 +63,11 @@ export const createServer = async (data: {
   status?: string;
   admin_message?: string;
   max_connections?: number;
+  host: string;
+  xray_panel_id: string;
+  inbound_id?: number;
+  is_user_specific?: boolean;
+  user_ids?: string[];
 }) => {
   return apiCall('/admin/servers', {
     method: 'POST',
@@ -78,11 +83,20 @@ export const updateServer = async (id: string, data: {
   status: string;
   admin_message?: string;
   max_connections?: number;
+  host: string;
+  xray_panel_id?: string;
+  inbound_id?: number;
+  is_user_specific?: boolean;
+  user_ids?: string[];
 }) => {
   return apiCall(`/admin/servers/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
+};
+
+export const getServerUsers = async (serverId: string) => {
+  return apiCall(`/admin/servers/${serverId}/users`);
 };
 
 export const deleteServer = async (id: string) => {
@@ -146,6 +160,11 @@ export const deletePlan = async (id: string) => {
   return apiCall(`/admin/plans/${id}`, {
     method: 'DELETE',
   });
+};
+
+// Xray Panel Management API
+export const getAllXrayPanels = async () => {
+  return apiCall('/admin/xray-panels');
 };
 
 // Ticket Management API

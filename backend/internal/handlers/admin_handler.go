@@ -74,13 +74,18 @@ func (h *AdminHandler) GetAllServers(c *gin.Context) {
 }
 
 type CreateServerRequest struct {
-	Name           string  `json:"name" binding:"required"`
-	Country        string  `json:"country" binding:"required"`
-	Flag           string  `json:"flag" binding:"required"`
-	Protocol       string  `json:"protocol" binding:"required"`
-	Status         string  `json:"status"`
-	AdminMessage   *string `json:"admin_message"`
-	MaxConnections int     `json:"max_connections"`
+	Name           string   `json:"name" binding:"required"`
+	Country        string   `json:"country" binding:"required"`
+	Flag           string   `json:"flag" binding:"required"`
+	Protocol       string   `json:"protocol" binding:"required"`
+	Status         string   `json:"status"`
+	AdminMessage   *string  `json:"admin_message"`
+	MaxConnections int      `json:"max_connections"`
+	Host           string   `json:"host" binding:"required"`
+	XrayPanelID    string   `json:"xray_panel_id" binding:"required"`
+	InboundID      int      `json:"inbound_id"`
+	IsUserSpecific bool     `json:"is_user_specific"`   // Whether this server is for specific users only
+	UserIDs        []string `json:"user_ids,omitempty"` // Users who can access this server (if user-specific)
 }
 
 func (h *AdminHandler) CreateServer(c *gin.Context) {
@@ -90,15 +95,38 @@ func (h *AdminHandler) CreateServer(c *gin.Context) {
 		return
 	}
 
+	// Parse XrayPanelID if provided
+	var xrayPanelID *uuid.UUID
+	if req.XrayPanelID != "" {
+		id, err := uuid.Parse(req.XrayPanelID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid XrayPanel ID"})
+			return
+		}
+		xrayPanelID = &id
+	}
+
 	server := models.Server{
 		Name:           req.Name,
 		Country:        req.Country,
 		Flag:           req.Flag,
+		Host:           req.Host,
 		Protocol:       req.Protocol,
 		Status:         req.Status,
 		AdminMessage:   req.AdminMessage,
 		MaxConnections: req.MaxConnections,
+		IsUserSpecific: req.IsUserSpecific,
 		IsActive:       true,
+	}
+
+	// Set XrayPanelID if provided
+	if xrayPanelID != nil {
+		server.XrayPanelID = *xrayPanelID
+	}
+
+	// Set InboundID if provided
+	if req.InboundID > 0 {
+		server.InboundID = req.InboundID
 	}
 
 	if server.Status == "" {
@@ -114,6 +142,29 @@ func (h *AdminHandler) CreateServer(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create server"})
 		return
 	}
+
+	// If this is a user-specific server, assign users
+	if req.IsUserSpecific && len(req.UserIDs) > 0 {
+		for _, userIDStr := range req.UserIDs {
+			userID, err := uuid.Parse(userIDStr)
+			if err != nil {
+				continue // Skip invalid user IDs
+			}
+
+			serverUser := models.ServerUser{
+				ServerID: server.ID,
+				UserID:   userID,
+			}
+
+			if err := h.db.DB.Create(&serverUser).Error; err != nil {
+				log.Error().Err(err).Str("user_id", userIDStr).Msg("Failed to assign user to server")
+				// Continue with other users
+			}
+		}
+	}
+
+	// Preload users for response
+	h.db.DB.Preload("Users").First(&server, "id = ?", server.ID)
 
 	c.JSON(http.StatusCreated, server)
 }
@@ -138,13 +189,38 @@ func (h *AdminHandler) UpdateServer(c *gin.Context) {
 		return
 	}
 
+	// Parse XrayPanelID if provided
+	var xrayPanelID *uuid.UUID
+	if req.XrayPanelID != "" {
+		panelID, err := uuid.Parse(req.XrayPanelID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid XrayPanel ID"})
+			return
+		}
+		xrayPanelID = &panelID
+	}
+
 	server.Name = req.Name
 	server.Country = req.Country
 	server.Flag = req.Flag
+	server.Host = req.Host
 	server.Protocol = req.Protocol
 	server.Status = req.Status
 	server.AdminMessage = req.AdminMessage
 	server.MaxConnections = req.MaxConnections
+	server.IsUserSpecific = req.IsUserSpecific
+
+	// Set XrayPanelID if provided
+	if xrayPanelID != nil {
+		server.XrayPanelID = *xrayPanelID
+	} else {
+		server.XrayPanelID = uuid.Nil // Clear if not provided
+	}
+
+	// Set InboundID if provided
+	if req.InboundID > 0 {
+		server.InboundID = req.InboundID
+	}
 
 	if err := h.db.DB.Save(&server).Error; err != nil {
 		log.Error().Err(err).Msg("Failed to update server")
@@ -152,7 +228,68 @@ func (h *AdminHandler) UpdateServer(c *gin.Context) {
 		return
 	}
 
+	// Handle user assignments for user-specific servers
+	if req.IsUserSpecific {
+		// First, remove all existing user assignments for this server
+		if err := h.db.DB.Where("server_id = ?", server.ID).Delete(&models.ServerUser{}).Error; err != nil {
+			log.Error().Err(err).Msg("Failed to clear server user assignments")
+		}
+
+		// Then add new user assignments
+		if len(req.UserIDs) > 0 {
+			for _, userIDStr := range req.UserIDs {
+				userID, err := uuid.Parse(userIDStr)
+				if err != nil {
+					continue // Skip invalid user IDs
+				}
+
+				serverUser := models.ServerUser{
+					ServerID: server.ID,
+					UserID:   userID,
+				}
+
+				if err := h.db.DB.Create(&serverUser).Error; err != nil {
+					log.Error().Err(err).Str("user_id", userIDStr).Msg("Failed to assign user to server")
+					// Continue with other users
+				}
+			}
+		}
+	} else {
+		// If server is no longer user-specific, remove all user assignments
+		if err := h.db.DB.Where("server_id = ?", server.ID).Delete(&models.ServerUser{}).Error; err != nil {
+			log.Error().Err(err).Msg("Failed to clear server user assignments")
+		}
+	}
+
+	// Preload users for response
+	h.db.DB.Preload("Users").First(&server, "id = ?", server.ID)
+
 	c.JSON(http.StatusOK, server)
+}
+
+// GetServerUsers returns the users assigned to a specific server
+func (h *AdminHandler) GetServerUsers(c *gin.Context) {
+	serverID := c.Param("id")
+	id, err := uuid.Parse(serverID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid server ID"})
+		return
+	}
+
+	var serverUsers []models.ServerUser
+	if err := h.db.DB.Preload("User").Where("server_id = ?", id).Find(&serverUsers).Error; err != nil {
+		log.Error().Err(err).Msg("Failed to get server users")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get server users"})
+		return
+	}
+
+	// Extract users from server users
+	users := make([]models.User, 0, len(serverUsers))
+	for _, su := range serverUsers {
+		users = append(users, su.User)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"users": users})
 }
 
 func (h *AdminHandler) DeleteServer(c *gin.Context) {
@@ -409,4 +546,16 @@ func (h *AdminHandler) ReplyToTicket(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, ticket)
+}
+
+// Xray Panel Management
+func (h *AdminHandler) GetAllXrayPanels(c *gin.Context) {
+	var panels []models.XrayPanel
+	if err := h.db.DB.Find(&panels).Error; err != nil {
+		log.Error().Err(err).Msg("Failed to get Xray panels")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get Xray panels"})
+		return
+	}
+
+	c.JSON(http.StatusOK, panels)
 }

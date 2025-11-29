@@ -76,6 +76,7 @@ type Server struct {
 	InboundID      int            `json:"inbound_id"`
 	MaxConnections int            `gorm:"default:1000" json:"max_connections"`
 	CurrentLoad    int            `gorm:"default:0" json:"current_load"`
+	IsUserSpecific bool           `gorm:"default:false" json:"is_user_specific"` // Whether this server is for specific users only
 	IsActive       bool           `gorm:"default:true" json:"is_active"`
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
@@ -84,6 +85,7 @@ type Server struct {
 	// Relations
 	XrayPanel   XrayPanel    `gorm:"foreignKey:XrayPanelID" json:"xray_panel,omitempty"`
 	Connections []Connection `json:"connections,omitempty"`
+	Users       []User       `gorm:"many2many:server_users;" json:"users,omitempty"` // Users who can access this server
 }
 
 // XrayPanel represents an Xray control panel (3x-ui, v2board, etc.)
@@ -175,6 +177,21 @@ type ServerReport struct {
 	// Relations
 	User   User   `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	Server Server `gorm:"foreignKey:ServerID" json:"server,omitempty"`
+}
+
+// ServerUser represents the relationship between servers and users
+// This allows servers to be assigned to specific users
+type ServerUser struct {
+	ID        uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	ServerID  uuid.UUID      `gorm:"type:uuid;not null;index" json:"server_id"`
+	UserID    uuid.UUID      `gorm:"type:uuid;not null;index" json:"user_id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// Relations
+	Server Server `gorm:"foreignKey:ServerID" json:"server,omitempty"`
+	User   User   `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }
 
 // ReferralStats tracks referral statistics

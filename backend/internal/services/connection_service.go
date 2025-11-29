@@ -13,24 +13,32 @@ import (
 )
 
 type ConnectionService struct {
-	db      *database.DB
-	queue   *queue.Queue
+	db          *database.DB
+	queue       *queue.Queue
 	xrayClients map[uuid.UUID]*xray.Client
 }
 
 func NewConnectionService(db *database.DB, q *queue.Queue) *ConnectionService {
 	return &ConnectionService{
-		db:      db,
-		queue:   q,
+		db:          db,
+		queue:       q,
 		xrayClients: make(map[uuid.UUID]*xray.Client),
 	}
 }
 
 func (s *ConnectionService) CreateConnection(userID, serverID uuid.UUID) (*models.Connection, error) {
-	// Get server
+	// Get server with user validation
 	var server models.Server
 	if err := s.db.Preload("XrayPanel").First(&server, "id = ? AND is_active = ?", serverID, true).Error; err != nil {
 		return nil, fmt.Errorf("server not found: %w", err)
+	}
+
+	// Check if this is a user-specific server and if the user has access
+	if server.IsUserSpecific {
+		var serverUser models.ServerUser
+		if err := s.db.DB.Where("server_id = ? AND user_id = ?", serverID, userID).First(&serverUser).Error; err != nil {
+			return nil, fmt.Errorf("access denied: this server is not available for your account")
+		}
 	}
 
 	// Check if user already has connection to this server
@@ -67,9 +75,9 @@ func (s *ConnectionService) CreateConnection(userID, serverID uuid.UUID) (*model
 	// Publish task to queue for async creation in Xray panel
 	if s.queue != nil {
 		if err := s.queue.PublishTask(queue.Task{
-			Type:        queue.TaskCreateConnection,
-			UserID:      userID,
-			ServerID:    serverID,
+			Type:         queue.TaskCreateConnection,
+			UserID:       userID,
+			ServerID:     serverID,
 			ConnectionID: connection.ID,
 			Data: map[string]interface{}{
 				"server_name": server.Name,
@@ -115,10 +123,10 @@ func (s *ConnectionService) DeleteConnection(connectionID uuid.UUID) error {
 	// Publish delete task
 	if s.queue != nil {
 		if err := s.queue.PublishTask(queue.Task{
-			Type:        queue.TaskDeleteConnection,
+			Type:         queue.TaskDeleteConnection,
 			ConnectionID: connectionID,
-			UserID:      connection.UserID,
-			ServerID:    connection.ServerID,
+			UserID:       connection.UserID,
+			ServerID:     connection.ServerID,
 		}); err != nil {
 			// Log error
 		}
@@ -136,4 +144,3 @@ func (s *ConnectionService) UpdateConnectionKey(connectionID uuid.UUID, key, sub
 			"subscription_link": subscriptionLink,
 		}).Error
 }
-

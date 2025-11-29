@@ -19,9 +19,22 @@ func NewServerHandler(db *database.DB) *ServerHandler {
 }
 
 func (h *ServerHandler) GetServers(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
 	var servers []models.Server
 
-	if err := h.db.DB.Where("is_active = ?", true).Find(&servers).Error; err != nil {
+	// Get servers that are either:
+	// 1. Not user-specific (available to all users)
+	// 2. User-specific and assigned to this user
+	if err := h.db.DB.
+		Where("is_active = ? AND (is_user_specific = ? OR id IN (SELECT server_id FROM server_users WHERE user_id = ?))",
+			true, false, userID).
+		Find(&servers).Error; err != nil {
 		log.Error().Err(err).Msg("Failed to get servers")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get servers"})
 		return
