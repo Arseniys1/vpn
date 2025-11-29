@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/spf13/viper"
@@ -17,9 +18,9 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Env        string `mapstructure:"env"`
-	Version    string `mapstructure:"version"`
-	LogLevel   string `mapstructure:"log_level"`
+	Env         string `mapstructure:"env"`
+	Version     string `mapstructure:"version"`
+	LogLevel    string `mapstructure:"log_level"`
 	ServiceName string `mapstructure:"service_name"`
 }
 
@@ -36,9 +37,9 @@ type DatabaseConfig struct {
 }
 
 type RabbitMQConfig struct {
-	URL          string `mapstructure:"url"`
-	Exchange     string `mapstructure:"exchange"`
-	QueuePrefix  string `mapstructure:"queue_prefix"`
+	URL         string `mapstructure:"url"`
+	Exchange    string `mapstructure:"exchange"`
+	QueuePrefix string `mapstructure:"queue_prefix"`
 }
 
 type ServerConfig struct {
@@ -50,7 +51,7 @@ type ServerConfig struct {
 }
 
 type TelegramConfig struct {
-	BotToken string `mapstructure:"bot_token"`
+	BotToken   string `mapstructure:"bot_token"`
 	WebhookURL string `mapstructure:"webhook_url"`
 }
 
@@ -128,6 +129,31 @@ func setDefaults() {
 }
 
 func overrideWithEnv(config *Config) {
+	// Support Docker secrets (files)
+	if dbPasswordFile := viper.GetString("DB_PASSWORD_FILE"); dbPasswordFile != "" {
+		if password, err := readSecretFile(dbPasswordFile); err == nil {
+			config.Database.Password = password
+		}
+	} else if viper.IsSet("DB_PASSWORD") {
+		config.Database.Password = viper.GetString("DB_PASSWORD")
+	}
+
+	if jwtSecretFile := viper.GetString("JWT_SECRET_FILE"); jwtSecretFile != "" {
+		if secret, err := readSecretFile(jwtSecretFile); err == nil {
+			config.JWT.Secret = secret
+		}
+	} else if viper.IsSet("JWT_SECRET") {
+		config.JWT.Secret = viper.GetString("JWT_SECRET")
+	}
+
+	if telegramTokenFile := viper.GetString("TELEGRAM_BOT_TOKEN_FILE"); telegramTokenFile != "" {
+		if token, err := readSecretFile(telegramTokenFile); err == nil {
+			config.Telegram.BotToken = token
+		}
+	} else if viper.IsSet("TELEGRAM_BOT_TOKEN") {
+		config.Telegram.BotToken = viper.GetString("TELEGRAM_BOT_TOKEN")
+	}
+
 	if viper.IsSet("DB_HOST") {
 		config.Database.Host = viper.GetString("DB_HOST")
 	}
@@ -136,9 +162,6 @@ func overrideWithEnv(config *Config) {
 	}
 	if viper.IsSet("DB_USER") {
 		config.Database.User = viper.GetString("DB_USER")
-	}
-	if viper.IsSet("DB_PASSWORD") {
-		config.Database.Password = viper.GetString("DB_PASSWORD")
 	}
 	if viper.IsSet("DB_NAME") {
 		config.Database.DBName = viper.GetString("DB_NAME")
@@ -158,14 +181,6 @@ func overrideWithEnv(config *Config) {
 		config.App.LogLevel = viper.GetString("LOG_LEVEL")
 	}
 
-	if viper.IsSet("TELEGRAM_BOT_TOKEN") {
-		config.Telegram.BotToken = viper.GetString("TELEGRAM_BOT_TOKEN")
-	}
-
-	if viper.IsSet("JWT_SECRET") {
-		config.JWT.Secret = viper.GetString("JWT_SECRET")
-	}
-
 	if viper.IsSet("SERVER_PORT") {
 		config.Server.Port = viper.GetInt("SERVER_PORT")
 	}
@@ -176,3 +191,11 @@ func (c *DatabaseConfig) DSN() string {
 		c.Host, c.Port, c.User, c.Password, c.DBName, c.SSLMode)
 }
 
+// readSecretFile reads a secret from a file (for Docker secrets)
+func readSecretFile(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}

@@ -40,7 +40,20 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string, db *database.DB) 
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
+	// Readiness check
+	r.GET("/ready", func(c *gin.Context) {
+		// Check database connection
+		sqlDB, err := db.DB.DB()
+		if err != nil || sqlDB.Ping() != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "not ready"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "ready"})
+	})
+
 	api := r.Group("/api/v1")
+	// Apply rate limiting to all API routes
+	api.Use(middleware.RateLimit(10, 20)) // 10 requests per second, burst of 20
 	{
 		// Public routes
 		api.GET("/servers", h.ServerHandler.GetServers)

@@ -44,10 +44,15 @@ func New(cfg *config.Config) (*DB, error) {
 		return nil, fmt.Errorf("failed to get underlying sql.DB: %w", err)
 	}
 
-	// Set connection pool settings
+	// Set connection pool settings for production
+	// MaxOpenConns: Maximum number of open connections to the database
+	// MaxIdleConns: Maximum number of idle connections in the pool
+	// ConnMaxLifetime: Maximum amount of time a connection may be reused
 	sqlDB.SetMaxOpenConns(cfg.Database.MaxOpenConns)
 	sqlDB.SetMaxIdleConns(cfg.Database.MaxIdleConns)
 	sqlDB.SetConnMaxLifetime(cfg.Database.ConnMaxLifetime)
+	// Set max idle time for connections (good for cloud databases)
+	sqlDB.SetConnMaxIdleTime(5 * time.Minute)
 
 	// Test connection
 	if err := sqlDB.Ping(); err != nil {
@@ -136,4 +141,3 @@ func (db *DB) Close() error {
 func stringPtr(s string) *string {
 	return &s
 }
-

@@ -409,11 +409,57 @@ const ServerEditForm: React.FC<{ server: any; onSave: (data: any) => void; onCan
 
 // Users Tab Component
 const UsersTab: React.FC = () => {
-  const [users] = useState([
-    { id: '1', name: 'Иван Петров', telegramId: '123456789', balance: 500, subscription: 'Активна', expiresAt: '2024-12-31' },
-    { id: '2', name: 'Мария Сидорова', telegramId: '987654321', balance: 1200, subscription: 'Активна', expiresAt: '2024-11-15' },
-    { id: '3', name: 'Алексей Иванов', telegramId: '555666777', balance: 0, subscription: 'Неактивна', expiresAt: null }
-  ]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [editingUser, setEditingUser] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    loadUsers();
+  }, [page, searchQuery]);
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const data = await adminApi.getAllUsers({ page, limit: 20, search: searchQuery });
+      setUsers(data.users);
+      setTotal(data.total);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      alert('Ошибка загрузки пользователей');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateUser = async (userId: string, updates: { balance?: number; is_active?: boolean }) => {
+    try {
+      await adminApi.updateUser(userId, updates);
+      await loadUsers();
+      setEditingUser(null);
+      if (window.Telegram?.WebApp?.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      }
+    } catch (error: any) {
+      console.error('Failed to update user:', error);
+      alert('Ошибка обновления пользователя: ' + (error.message || 'Неизвестная ошибка'));
+    }
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setPage(1);
+  };
+
+  if (loading && users.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-tg-hint">Загрузка...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -422,20 +468,126 @@ const UsersTab: React.FC = () => {
           type="text"
           placeholder="Поиск по имени или Telegram ID..."
           className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+          value={searchQuery}
+          onChange={(e) => handleSearch(e.target.value)}
         />
       </div>
 
-      {users.map(user => (
-        <div key={user.id} className="bg-tg-secondary rounded-xl p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-tg-blue rounded-full flex items-center justify-center text-white font-bold">
-              {user.name.charAt(0)}
-            </div>
-            <div className="flex-1">
-              <div className="font-semibold text-tg-text">{user.name}</div>
-              <div className="text-xs text-tg-hint">ID: {user.telegramId}</div>
-            </div>
+      {users.length === 0 ? (
+        <div className="text-center py-10 text-tg-hint">
+          {searchQuery ? 'Пользователи не найдены' : 'Нет пользователей'}
+        </div>
+      ) : (
+        users.map(user => (
+          <UserCard
+            key={user.id}
+            user={user}
+            isEditing={editingUser === user.id}
+            onEdit={() => setEditingUser(user.id)}
+            onCancel={() => setEditingUser(null)}
+            onUpdate={handleUpdateUser}
+          />
+        ))
+      )}
+
+      {total > 20 && (
+        <div className="flex justify-between items-center pt-2">
+          <button
+            disabled={page === 1}
+            onClick={() => setPage(p => p - 1)}
+            className="px-4 py-2 bg-tg-secondary rounded-lg text-sm disabled:opacity-50"
+          >
+            Назад
+          </button>
+          <span className="text-sm text-tg-hint">Стр. {page}</span>
+          <button
+            disabled={page * 20 >= total}
+            onClick={() => setPage(p => p + 1)}
+            className="px-4 py-2 bg-tg-secondary rounded-lg text-sm disabled:opacity-50"
+          >
+            Вперед
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const UserCard: React.FC<{
+  user: any;
+  isEditing: boolean;
+  onEdit: () => void;
+  onCancel: () => void;
+  onUpdate: (userId: string, updates: any) => void;
+}> = ({ user, isEditing, onEdit, onCancel, onUpdate }) => {
+  const [balance, setBalance] = useState(user.balance);
+  const [isActive, setIsActive] = useState(user.is_active);
+
+  const handleSave = () => {
+    onUpdate(user.id, {
+      balance: parseInt(balance),
+      is_active: isActive
+    });
+  };
+
+  const hasSubscription = user.subscription && user.subscription.is_active;
+
+  return (
+    <div className="bg-tg-secondary rounded-xl p-4">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 bg-tg-blue rounded-full flex items-center justify-center text-white font-bold">
+          {user.first_name?.charAt(0) || 'U'}
+        </div>
+        <div className="flex-1">
+          <div className="font-semibold text-tg-text">
+            {user.first_name} {user.last_name || ''}
           </div>
+          <div className="text-xs text-tg-hint">ID: {user.telegram_id}</div>
+        </div>
+        {user.is_admin && (
+          <div className="px-2 py-1 bg-orange-500/10 text-orange-500 rounded text-xs font-bold">
+            ADMIN
+          </div>
+        )}
+      </div>
+
+      {isEditing ? (
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-tg-hint block mb-1">Баланс</label>
+            <input
+              type="number"
+              className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+              value={balance}
+              onChange={(e) => setBalance(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+              className="w-4 h-4"
+            />
+            <label className="text-sm text-tg-text">Активный аккаунт</label>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              className="flex-1 bg-tg-blue text-white py-2 rounded-lg font-medium"
+            >
+              Сохранить
+            </button>
+            <button
+              onClick={onCancel}
+              className="flex-1 bg-tg-bg text-tg-hint py-2 rounded-lg font-medium"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
           <div className="grid grid-cols-2 gap-2 text-xs mb-3">
             <div className="bg-tg-bg rounded-lg p-2">
               <div className="text-tg-hint">Баланс</div>
@@ -443,51 +595,178 @@ const UsersTab: React.FC = () => {
             </div>
             <div className="bg-tg-bg rounded-lg p-2">
               <div className="text-tg-hint">Подписка</div>
-              <div className={`font-semibold ${user.subscription === 'Активна' ? 'text-tg-green' : 'text-tg-red'}`}>
-                {user.subscription}
+              <div className={`font-semibold ${hasSubscription ? 'text-tg-green' : 'text-tg-red'}`}>
+                {hasSubscription ? 'Активна' : 'Неактивна'}
               </div>
             </div>
           </div>
-          {user.expiresAt && (
-            <div className="text-xs text-tg-hint mb-3">
-              Действует до: {user.expiresAt}
-            </div>
-          )}
           <div className="flex gap-2">
-            <button className="flex-1 bg-tg-blue/10 text-tg-blue py-2 rounded-lg text-sm font-medium">
+            <button
+              onClick={onEdit}
+              className="flex-1 bg-tg-blue/10 text-tg-blue py-2 rounded-lg text-sm font-medium"
+            >
               <i className="fas fa-edit mr-1"></i>
               Редактировать
             </button>
-            <button className="px-3 bg-tg-red/10 text-tg-red rounded-lg">
-              <i className="fas fa-ban"></i>
+            <button
+              onClick={() => onUpdate(user.id, { is_active: !user.is_active })}
+              className={`px-3 rounded-lg ${user.is_active ? 'bg-tg-red/10 text-tg-red' : 'bg-tg-green/10 text-tg-green'}`}
+            >
+              <i className={`fas fa-${user.is_active ? 'ban' : 'check'}`}></i>
             </button>
           </div>
-        </div>
-      ))}
+        </>
+      )}
     </div>
   );
 };
 
 // Plans Tab Component
 const PlansTab: React.FC = () => {
-  const [plans, setPlans] = useState([
-    { id: '1', name: '1 Месяц', duration: 1, price: 100, discount: null },
-    { id: '2', name: '3 Месяца', duration: 3, price: 250, discount: '-15%' },
-    { id: '3', name: '1 Год', duration: 12, price: 900, discount: '-25%' }
-  ]);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editingPlan, setEditingPlan] = useState<string | null>(null);
+  const [isAddingPlan, setIsAddingPlan] = useState(false);
+  const [newPlan, setNewPlan] = useState({ name: '', duration_months: 1, price_stars: 100, discount: '' });
 
-  const handleSavePlan = (id: string, updatedData: any) => {
-    setPlans(plans.map(p => p.id === id ? { ...p, ...updatedData } : p));
-    setEditingPlan(null);
+  useEffect(() => {
+    loadPlans();
+  }, []);
+
+  const loadPlans = async () => {
+    try {
+      setLoading(true);
+      const data = await adminApi.getAllPlans();
+      setPlans(data);
+    } catch (error) {
+      console.error('Failed to load plans:', error);
+      alert('Ошибка загрузки тарифов');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleSavePlan = async (id: string, updatedData: any) => {
+    try {
+      await adminApi.updatePlan(id, {
+        name: updatedData.name,
+        duration_months: parseInt(updatedData.duration_months),
+        price_stars: parseInt(updatedData.price_stars),
+        discount: updatedData.discount || undefined
+      });
+      await loadPlans();
+      setEditingPlan(null);
+      if (window.Telegram?.WebApp?.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      }
+    } catch (error: any) {
+      console.error('Failed to update plan:', error);
+      alert('Ошибка обновления тарифа: ' + (error.message || 'Неизвестная ошибка'));
+    }
+  };
+
+  const handleDeletePlan = async (id: string) => {
+    if (confirm('Вы уверены, что хотите удалить этот тариф?')) {
+      try {
+        await adminApi.deletePlan(id);
+        await loadPlans();
+        if (window.Telegram?.WebApp?.HapticFeedback) {
+          window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+        }
+      } catch (error: any) {
+        console.error('Failed to delete plan:', error);
+        alert('Ошибка удаления тарифа: ' + (error.message || 'Неизвестная ошибка'));
+      }
+    }
+  };
+
+  const handleAddPlan = async () => {
+    if (!newPlan.name || !newPlan.duration_months || !newPlan.price_stars) {
+      alert('Заполните все обязательные поля');
+      return;
+    }
+    try {
+      await adminApi.createPlan({
+        name: newPlan.name,
+        duration_months: parseInt(newPlan.duration_months.toString()),
+        price_stars: parseInt(newPlan.price_stars.toString()),
+        discount: newPlan.discount || undefined
+      });
+      await loadPlans();
+      setNewPlan({ name: '', duration_months: 1, price_stars: 100, discount: '' });
+      setIsAddingPlan(false);
+      if (window.Telegram?.WebApp?.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      }
+    } catch (error: any) {
+      console.error('Failed to create plan:', error);
+      alert('Ошибка создания тарифа: ' + (error.message || 'Неизвестная ошибка'));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-tg-hint">Загрузка...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
-      <button className="w-full bg-tg-blue text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2">
+      <button
+        onClick={() => setIsAddingPlan(true)}
+        className="w-full bg-tg-blue text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
+      >
         <i className="fas fa-plus"></i>
         Добавить тариф
       </button>
+
+      {isAddingPlan && (
+        <div className="bg-tg-secondary rounded-xl p-4 space-y-3">
+          <h3 className="font-semibold text-tg-text mb-2">Новый тариф</h3>
+          <input
+            className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+            placeholder="Название"
+            value={newPlan.name}
+            onChange={(e) => setNewPlan({ ...newPlan, name: e.target.value })}
+          />
+          <input
+            type="number"
+            className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+            placeholder="Длительность (месяцы)"
+            value={newPlan.duration_months}
+            onChange={(e) => setNewPlan({ ...newPlan, duration_months: parseInt(e.target.value) || 1 })}
+          />
+          <input
+            type="number"
+            className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+            placeholder="Цена (звезды)"
+            value={newPlan.price_stars}
+            onChange={(e) => setNewPlan({ ...newPlan, price_stars: parseInt(e.target.value) || 100 })}
+          />
+          <input
+            className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
+            placeholder="Скидка (например -15%)"
+            value={newPlan.discount}
+            onChange={(e) => setNewPlan({ ...newPlan, discount: e.target.value })}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleAddPlan}
+              className="flex-1 bg-tg-blue text-white py-2 rounded-lg font-medium"
+            >
+              Создать
+            </button>
+            <button
+              onClick={() => setIsAddingPlan(false)}
+              className="flex-1 bg-tg-bg text-tg-hint py-2 rounded-lg font-medium"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
 
       {plans.map(plan => (
         <div key={plan.id} className="bg-tg-secondary rounded-xl p-4">
@@ -502,10 +781,10 @@ const PlansTab: React.FC = () => {
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <div className="font-semibold text-tg-text">{plan.name}</div>
-                  <div className="text-xs text-tg-hint">{plan.duration} мес.</div>
+                  <div className="text-xs text-tg-hint">{plan.duration_months} мес.</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xl font-bold text-tg-text">{plan.price} ★</div>
+                  <div className="text-xl font-bold text-tg-text">{plan.price_stars} ★</div>
                   {plan.discount && (
                     <div className="text-xs text-tg-green font-semibold">{plan.discount}</div>
                   )}
@@ -519,7 +798,10 @@ const PlansTab: React.FC = () => {
                   <i className="fas fa-edit mr-1"></i>
                   Редактировать
                 </button>
-                <button className="px-3 bg-tg-red/10 text-tg-red rounded-lg">
+                <button
+                  onClick={() => handleDeletePlan(plan.id)}
+                  className="px-3 bg-tg-red/10 text-tg-red rounded-lg"
+                >
                   <i className="fas fa-trash"></i>
                 </button>
               </div>
@@ -546,15 +828,15 @@ const PlanEditForm: React.FC<{ plan: any; onSave: (data: any) => void; onCancel:
         type="number"
         className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
         placeholder="Длительность (месяцы)"
-        value={formData.duration}
-        onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
+        value={formData.duration_months}
+        onChange={(e) => setFormData({ ...formData, duration_months: parseInt(e.target.value) })}
       />
       <input
         type="number"
         className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
         placeholder="Цена (звезды)"
-        value={formData.price}
-        onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) })}
+        value={formData.price_stars}
+        onChange={(e) => setFormData({ ...formData, price_stars: parseInt(e.target.value) })}
       />
       <input
         className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text"
@@ -582,11 +864,50 @@ const PlanEditForm: React.FC<{ plan: any; onSave: (data: any) => void; onCancel:
 
 // Tickets Tab Component
 const TicketsTab: React.FC = () => {
-  const [tickets] = useState([
-    { id: '1', user: 'Иван П.', subject: 'Не работает сервер', status: 'open', date: '2024-01-15' },
-    { id: '2', user: 'Мария С.', subject: 'Вопрос по оплате', status: 'answered', date: '2024-01-14' },
-    { id: '3', user: 'Алексей И.', subject: 'Низкая скорость', status: 'closed', date: '2024-01-13' }
-  ]);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+
+  useEffect(() => {
+    loadTickets();
+  }, [filterStatus]);
+
+  const loadTickets = async () => {
+    try {
+      setLoading(true);
+      const data = await adminApi.getAllTickets(filterStatus || undefined);
+      setTickets(data);
+    } catch (error) {
+      console.error('Failed to load tickets:', error);
+      alert('Ошибка загрузки тикетов');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReply = async (ticketId: string) => {
+    if (!replyText.trim()) {
+      alert('Введите ответ');
+      return;
+    }
+    try {
+      await adminApi.replyToTicket(ticketId, {
+        reply: replyText,
+        status: 'answered'
+      });
+      await loadTickets();
+      setReplyingTo(null);
+      setReplyText('');
+      if (window.Telegram?.WebApp?.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      }
+    } catch (error: any) {
+      console.error('Failed to reply to ticket:', error);
+      alert('Ошибка ответа на тикет: ' + (error.message || 'Неизвестная ошибка'));
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -606,25 +927,107 @@ const TicketsTab: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-tg-hint">Загрузка...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
-      {tickets.map(ticket => (
-        <div key={ticket.id} className="bg-tg-secondary rounded-xl p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="font-semibold text-tg-text">{ticket.subject}</div>
-            <div className={`px-2 py-1 rounded text-xs font-bold ${getStatusColor(ticket.status)}`}>
-              {getStatusText(ticket.status)}
-            </div>
-          </div>
-          <div className="text-xs text-tg-hint mb-3">
-            От: {ticket.user} • {ticket.date}
-          </div>
-          <button className="w-full bg-tg-blue/10 text-tg-blue py-2 rounded-lg text-sm font-medium">
-            <i className="fas fa-eye mr-1"></i>
-            Просмотреть
-          </button>
+      <div className="flex gap-2 mb-2">
+        <button
+          onClick={() => setFilterStatus('')}
+          className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+            filterStatus === '' ? 'bg-tg-blue text-white' : 'bg-tg-secondary text-tg-hint'
+          }`}
+        >
+          Все
+        </button>
+        <button
+          onClick={() => setFilterStatus('open')}
+          className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+            filterStatus === 'open' ? 'bg-tg-blue text-white' : 'bg-tg-secondary text-tg-hint'
+          }`}
+        >
+          Открытые
+        </button>
+        <button
+          onClick={() => setFilterStatus('answered')}
+          className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+            filterStatus === 'answered' ? 'bg-tg-blue text-white' : 'bg-tg-secondary text-tg-hint'
+          }`}
+        >
+          Отвеченные
+        </button>
+      </div>
+
+      {tickets.length === 0 ? (
+        <div className="text-center py-10 text-tg-hint">
+          Нет тикетов
         </div>
-      ))}
+      ) : (
+        tickets.map(ticket => (
+          <div key={ticket.id} className="bg-tg-secondary rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-semibold text-tg-text">{ticket.subject}</div>
+              <div className={`px-2 py-1 rounded text-xs font-bold ${getStatusColor(ticket.status)}`}>
+                {getStatusText(ticket.status)}
+              </div>
+            </div>
+            <div className="text-xs text-tg-hint mb-2">
+              От: {ticket.user?.first_name || 'Unknown'} (ID: {ticket.user?.telegram_id || 'N/A'})
+            </div>
+            <div className="text-sm text-tg-text mb-3 bg-tg-bg rounded-lg p-2">
+              {ticket.message}
+            </div>
+            {ticket.admin_reply && (
+              <div className="text-sm text-tg-blue bg-tg-blue/10 rounded-lg p-2 mb-3">
+                <div className="text-xs font-semibold mb-1">Ответ администратора:</div>
+                {ticket.admin_reply}
+              </div>
+            )}
+            {replyingTo === ticket.id ? (
+              <div className="space-y-2">
+                <textarea
+                  className="w-full bg-tg-bg border border-tg-separator rounded-lg p-2 text-sm text-tg-text resize-none"
+                  placeholder="Ваш ответ..."
+                  rows={3}
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleReply(ticket.id)}
+                    className="flex-1 bg-tg-blue text-white py-2 rounded-lg text-sm font-medium"
+                  >
+                    Отправить
+                  </button>
+                  <button
+                    onClick={() => {
+                      setReplyingTo(null);
+                      setReplyText('');
+                    }}
+                    className="flex-1 bg-tg-bg text-tg-hint py-2 rounded-lg text-sm font-medium"
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setReplyingTo(ticket.id)}
+                className="w-full bg-tg-blue/10 text-tg-blue py-2 rounded-lg text-sm font-medium"
+              >
+                <i className="fas fa-reply mr-1"></i>
+                Ответить
+              </button>
+            )}
+          </div>
+        ))
+      )}
     </div>
   );
 };

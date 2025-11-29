@@ -1,0 +1,297 @@
+version: '3.8'
+
+services:
+  api:
+    image: ${REGISTRY:-}xray-vpn-api:${VERSION:-latest}
+    command: ./api-binary
+    environment:
+      - DB_HOST=postgres
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD_FILE=/run/secrets/db_password
+      - DB_NAME=${DB_NAME:-xrayvpn}
+      - DB_PORT=5432
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      - APP_ENV=production
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - TELEGRAM_BOT_TOKEN_FILE=/run/secrets/telegram_bot_token
+      - JWT_SECRET_FILE=/run/secrets/jwt_secret
+      - SERVER_PORT=8080
+    networks:
+      - xray-network
+      - traefik-public
+    secrets:
+      - db_password
+      - telegram_bot_token
+      - jwt_secret
+    depends_on:
+      - postgres
+      - rabbitmq
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      replicas: ${API_REPLICAS:-3}
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+      placement:
+        constraints:
+          - node.role == worker
+        preferences:
+          - spread: node.id
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.xray-api.rule=Host(`${DOMAIN:-api.example.com}`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.xray-api.entrypoints=websecure"
+        - "traefik.http.routers.xray-api.tls=true"
+        - "traefik.http.routers.xray-api.tls.certresolver=letsencrypt"
+        - "traefik.http.services.xray-api.loadbalancer.server.port=8080"
+        - "traefik.http.services.xray-api.loadbalancer.healthcheck.path=/health"
+        - "traefik.http.services.xray-api.loadbalancer.healthcheck.interval=10s"
+
+  worker:
+    image: ${REGISTRY:-}xray-vpn-worker:${VERSION:-latest}
+    command: ./worker-binary
+    environment:
+      - DB_HOST=postgres
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD_FILE=/run/secrets/db_password
+      - DB_NAME=${DB_NAME:-xrayvpn}
+      - DB_PORT=5432
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      - APP_ENV=production
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    networks:
+      - xray-network
+    secrets:
+      - db_password
+    depends_on:
+      - postgres
+      - rabbitmq
+    deploy:
+      replicas: ${WORKER_REPLICAS:-2}
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+      placement:
+        constraints:
+          - node.role == worker
+        preferences:
+          - spread: node.id
+
+  frontend:
+    image: ${REGISTRY:-}xray-vpn-frontend:${VERSION:-latest}
+    networks:
+      - traefik-public
+    deploy:
+      replicas: ${FRONTEND_REPLICAS:-2}
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+      placement:
+        constraints:
+          - node.role == worker
+        preferences:
+          - spread: node.id
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.xray-frontend.rule=Host(`${DOMAIN:-app.example.com}`)"
+        - "traefik.http.routers.xray-frontend.entrypoints=websecure"
+        - "traefik.http.routers.xray-frontend.tls=true"
+        - "traefik.http.routers.xray-frontend.tls.certresolver=letsencrypt"
+        - "traefik.http.services.xray-frontend.loadbalancer.server.port=80"
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: ${DB_NAME:-xrayvpn}
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    networks:
+      - xray-network
+    secrets:
+      - db_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-xrayvpn}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+          - node.labels.postgres == true
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS_FILE: /run/secrets/rabbitmq_password
+    networks:
+      - xray-network
+    secrets:
+      - rabbitmq_password
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+
+  traefik:
+    image: traefik:v2.10
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.swarmMode=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@example.com}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--log.level=${TRAEFIK_LOG_LEVEL:-INFO}"
+      - "--accesslog=true"
+      - "--metrics.prometheus=true"
+    ports:
+      - target: 80
+        published: 80
+        mode: host
+      - target: 443
+        published: 443
+        mode: host
+    networks:
+      - traefik-public
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/letsencrypt
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN:-example.com}`)"
+        - "traefik.http.routers.traefik.service=api@internal"
+        - "traefik.http.routers.traefik.entrypoints=websecure"
+        - "traefik.http.routers.traefik.tls=true"
+        - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+        - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+
+networks:
+  xray-network:
+    driver: overlay
+    attachable: true
+  traefik-public:
+    driver: overlay
+    external: true
+
+volumes:
+  postgres_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  traefik_certs:
+    driver: local
+
+secrets:
+  db_password:
+    external: true
+  telegram_bot_token:
+    external: true
+  jwt_secret:
+    external: true
+  rabbitmq_password:
+    external: true

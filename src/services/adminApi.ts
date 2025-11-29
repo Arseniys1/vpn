@@ -1,5 +1,6 @@
 // Admin API Service
-const API_BASE_URL = 'http://localhost:8080/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+const APP_ENV = import.meta.env.VITE_APP_ENV || 'development';
 
 // Helper function to get Telegram init data
 const getTelegramInitData = (): string => {
@@ -9,25 +10,39 @@ const getTelegramInitData = (): string => {
   return '';
 };
 
-// Helper function for API calls
-const apiCall = async (endpoint: string, options: RequestInit = {}) => {
+// Helper function for API calls with retry logic
+const apiCall = async (endpoint: string, options: RequestInit = {}, retries = 3) => {
   const headers = {
     'Content-Type': 'application/json',
     'X-Telegram-Init-Data': getTelegramInitData(),
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let lastError: Error | null = null;
+  
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers,
+      });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || `HTTP ${response.status}`);
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Request failed' }));
+        throw new Error(error.error || `HTTP ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      lastError = error as Error;
+      if (i < retries - 1) {
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+      }
+    }
   }
-
-  return response.json();
+  
+  throw lastError || new Error('Request failed after retries');
 };
 
 // Stats API
