@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -127,12 +128,17 @@ func (h *UserHandler) GetReferralStats(c *gin.Context) {
 	// Calculate reward earned (10% of total)
 	rewardEarned := activeReferrals * 50
 
-	// Generate referral link
-	referralLink := fmt.Sprintf("https://t.me/YourBotUsername?start=%s", user.ReferralCode)
+	// Generate referral link using environment variable
+	botUsername := os.Getenv("TELEGRAM_BOT_USERNAME")
+	if botUsername == "" {
+		botUsername = "YourBotUsername" // fallback
+	}
+	referralLink := fmt.Sprintf("https://t.me/%s?start=%s", botUsername, user.ReferralCode)
 
 	c.JSON(http.StatusOK, gin.H{
 		"referral_code":    user.ReferralCode,
 		"referral_link":    referralLink,
+		"referral_url":     referralLink,
 		"total_referrals":  totalReferrals,
 		"active_referrals": activeReferrals,
 		"reward_earned":    rewardEarned,

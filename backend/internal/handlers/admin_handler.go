@@ -48,8 +48,14 @@ func (h *AdminHandler) GetStats(c *gin.Context) {
 	// Count total servers
 	h.db.DB.Model(&models.Server{}).Where("is_active = ?", true).Count(&stats.TotalServers)
 
-	// Calculate monthly revenue (mock for now)
-	stats.MonthlyRevenue = 125400
+	// Calculate monthly revenue from active subscriptions
+	var totalRevenue int64
+	h.db.DB.Table("subscriptions").
+		Joins("JOIN plans ON subscriptions.plan_id = plans.id").
+		Where("subscriptions.is_active = ? AND plans.is_active = ?", true, true).
+		Select("SUM(plans.price_stars)").
+		Row().Scan(&totalRevenue)
+	stats.MonthlyRevenue = totalRevenue
 
 	c.JSON(http.StatusOK, stats)
 }

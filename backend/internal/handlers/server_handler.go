@@ -40,10 +40,23 @@ func (h *ServerHandler) GetServers(c *gin.Context) {
 
 	response := make([]ServerResponse, 0, len(servers))
 	for _, server := range servers {
-		// Calculate mock ping based on server location (could be real ping later)
-		ping := 50 + (server.CurrentLoad * 2)
-		if ping > 200 {
-			ping = 200
+		// Calculate realistic ping based on server location and current load
+		ping := 30 + (server.CurrentLoad * 3)
+		if server.Country == "United States" || server.Country == "Canada" {
+			ping += 10
+		} else if server.Country == "Germany" || server.Country == "Netherlands" || server.Country == "United Kingdom" {
+			ping += 20
+		} else if server.Country == "Singapore" || server.Country == "Japan" || server.Country == "South Korea" {
+			ping += 40
+		} else if server.Country == "Australia" || server.Country == "Brazil" {
+			ping += 60
+		} else {
+			ping += 30 // Default for other locations
+		}
+
+		// Cap maximum ping
+		if ping > 300 {
+			ping = 300
 		}
 
 		response = append(response, ServerResponse{
