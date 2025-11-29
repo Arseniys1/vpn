@@ -1,0 +1,14 @@
+*.md
+.git
+.gitignore
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.env
+.env.local
+*.log
+coverage.out
+.DS_Store
+

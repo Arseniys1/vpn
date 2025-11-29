@@ -1,0 +1,37 @@
+app:
+  env: production
+  version: "1.0.0"
+  log_level: info
+  service_name: "xray-vpn-api"
+
+database:
+  host: postgres
+  port: 5432
+  user: postgres
+  password: secret
+  db_name: xrayvpn
+  ssl_mode: disable
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 300s
+
+rabbitmq:
+  url: amqp://guest:guest@rabbitmq:5672/
+  exchange: xray_vpn
+  queue_prefix: xray_vpn
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  read_timeout: 15s
+  write_timeout: 15s
+  idle_timeout: 60s
+
+telegram:
+  bot_token: "YOUR_BOT_TOKEN_HERE"
+  webhook_url: ""
+
+jwt:
+  secret: "change-me-in-production"
+  expiration: 24h
+
