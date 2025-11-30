@@ -4,7 +4,7 @@ import Layout from './components/Layout';
 import Modal from './components/Modal';
 import { Plan, UserSubscription, ServerLocation, OSType } from './types';
 import * as api from './services/api';
-import { initializeTelegramWebApp, isAuthenticated, getAuthMethod } from './services/authService';
+import { initializeTelegramWebApp, isAuthenticated, getAuthMethod, setBrowserAuthToken } from './services/authService';
 
 // Pages
 import Main from './pages/Main';
@@ -45,6 +45,22 @@ const App: React.FC = () => {
   useEffect(() => {
     // Initialize Telegram WebApp if in Telegram
     initializeTelegramWebApp();
+    
+    // Check for token parameter in URL (from Telegram authentication)
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    
+    if (token) {
+      // Set the token in localStorage and cookies
+      setBrowserAuthToken(token);
+      
+      // Remove token from URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Reload to apply authentication
+      window.location.reload();
+      return;
+    }
     
     // Check authentication status
     const authStatus = isAuthenticated();

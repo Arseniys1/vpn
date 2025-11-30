@@ -64,6 +64,9 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string, db *database.DB) 
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
 
+	// Telegram webhook endpoint (public)
+	r.POST("/webhook/telegram", h.AuthHandler.TelegramWebhook)
+
 	// Authentication endpoints
 	auth := r.Group("/auth")
 	{

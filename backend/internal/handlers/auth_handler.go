@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -89,6 +90,202 @@ func (h *AuthHandler) ValidateBrowserToken(c *gin.Context) {
 		"valid":   true,
 		"user_id": session.UserID,
 	})
+}
+
+// TelegramWebhook handles incoming Telegram bot commands
+func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
+	// Parse the incoming webhook data
+	var update struct {
+		UpdateID int `json:"update_id"`
+		Message  struct {
+			MessageID int `json:"message_id"`
+			From      struct {
+				ID        int64  `json:"id"`
+				FirstName string `json:"first_name"`
+				LastName  string `json:"last_name,omitempty"`
+				Username  string `json:"username,omitempty"`
+			} `json:"from"`
+			Chat struct {
+				ID   int64  `json:"id"`
+				Type string `json:"type"`
+			} `json:"chat"`
+			Date int    `json:"date"`
+			Text string `json:"text"`
+		} `json:"message,omitempty"`
+		CallbackQuery struct {
+			ID   string `json:"id"`
+			From struct {
+				ID        int64  `json:"id"`
+				FirstName string `json:"first_name"`
+				LastName  string `json:"last_name,omitempty"`
+				Username  string `json:"username,omitempty"`
+			} `json:"from"`
+			Message struct {
+				MessageID int `json:"message_id"`
+				Chat      struct {
+					ID   int64  `json:"id"`
+					Type string `json:"type"`
+				} `json:"chat"`
+			} `json:"message"`
+			Data string `json:"data"`
+		} `json:"callback_query,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&update); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	// Handle /start command with state parameter
+	if update.Message.Text != "" && strings.HasPrefix(update.Message.Text, "/start ") {
+		state := strings.TrimPrefix(update.Message.Text, "/start ")
+
+		// Validate the state parameter
+		var authSession models.AuthSession
+		if err := h.db.DB.Where("state = ? AND expires_at > ?", state, time.Now()).First(&authSession).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired authentication session"})
+			return
+		}
+
+		// Get or create user based on Telegram ID
+		user, err := h.getOrCreateUser(update.Message.From.ID, update.Message.From.FirstName, update.Message.From.LastName, update.Message.From.Username)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get or create user"})
+			return
+		}
+
+		// Create browser session token
+		token := generateRandomString(64)
+		browserSession := models.BrowserSession{
+			ID:        uuid.New(),
+			Token:     token,
+			UserID:    user.ID,
+			CreatedAt: time.Now(),
+			ExpiresAt: time.Now().Add(30 * 24 * time.Hour), // 30 days
+		}
+
+		if err := h.db.DB.Create(&browserSession).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create browser session"})
+			return
+		}
+
+		// Delete the used auth session to prevent replay attacks
+		h.db.DB.Delete(&authSession)
+
+		// Send success message to user with link to continue
+		frontendURL := os.Getenv("FRONTEND_URL")
+		if frontendURL == "" {
+			frontendURL = "http://localhost:3000" // default for development
+		}
+
+		// Store token in user's cookies by redirecting to frontend with token
+		redirectURL := fmt.Sprintf("%s/#/?token=%s", frontendURL, token)
+
+		// Send message to user with link
+		c.JSON(http.StatusOK, gin.H{
+			"method":     "sendMessage",
+			"chat_id":    update.Message.Chat.ID,
+			"text":       fmt.Sprintf("✅ Authentication successful! Click the link below to continue:\n\n%s", redirectURL),
+			"parse_mode": "HTML",
+		})
+		return
+	}
+
+	// Handle plain /start command (without state)
+	if update.Message.Text == "/start" {
+		c.JSON(http.StatusOK, gin.H{
+			"method":  "sendMessage",
+			"chat_id": update.Message.Chat.ID,
+			"text":    "Welcome to VPN Connect! To use this service in your browser, please visit our website and click 'Authenticate with Telegram'.",
+		})
+		return
+	}
+
+	// Default response
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// getOrCreateUser gets an existing user or creates a new one based on Telegram ID
+func (h *AuthHandler) getOrCreateUser(telegramID int64, firstName, lastName, username string) (*models.User, error) {
+	var user models.User
+
+	// Try to find existing user
+	if err := h.db.DB.Where("telegram_id = ?", telegramID).First(&user).Error; err == nil {
+		// User exists, update info if needed
+		needsUpdate := false
+
+		if user.FirstName != firstName {
+			user.FirstName = firstName
+			needsUpdate = true
+		}
+
+		if (user.LastName == nil && lastName != "") || (user.LastName != nil && *user.LastName != lastName) {
+			if lastName != "" {
+				user.LastName = &lastName
+			} else {
+				user.LastName = nil
+			}
+			needsUpdate = true
+		}
+
+		if (user.Username == nil && username != "") || (user.Username != nil && *user.Username != username) {
+			if username != "" {
+				user.Username = &username
+			} else {
+				user.Username = nil
+			}
+			needsUpdate = true
+		}
+
+		if needsUpdate {
+			if err := h.db.DB.Save(&user).Error; err != nil {
+				return nil, fmt.Errorf("failed to update user: %w", err)
+			}
+		}
+
+		return &user, nil
+	}
+
+	// Create new user
+	user = models.User{
+		ID:         uuid.New(),
+		TelegramID: telegramID,
+		FirstName:  firstName,
+		Balance:    0,
+		IsActive:   true,
+		IsAdmin:    false,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+
+	// Set optional fields
+	if lastName != "" {
+		user.LastName = &lastName
+	}
+
+	if username != "" {
+		user.Username = &username
+	}
+
+	// Generate referral code
+	user.ReferralCode = generateReferralCode()
+
+	if err := h.db.DB.Create(&user).Error; err != nil {
+		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return &user, nil
+}
+
+// generateReferralCode generates a unique referral code
+func generateReferralCode() string {
+	// Generate a random 8-character alphanumeric string
+	bytes := make([]byte, 4)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to timestamp-based string
+		return fmt.Sprintf("%x", time.Now().UnixNano())[:8]
+	}
+	return fmt.Sprintf("%x", bytes)
 }
 
 // generateRandomString generates a random string of given length
