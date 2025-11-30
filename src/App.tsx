@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
 import Modal from './components/Modal';
 import { Plan, UserSubscription, ServerLocation, OSType } from './types';
@@ -16,32 +16,10 @@ import Instructions from './pages/Instructions';
 import Admin from './pages/Admin';
 import Auth from './pages/Auth';
 
-const App: React.FC = () => {
-  const [balance, setBalance] = useState(0); 
-  const [userSubscription, setUserSubscription] = useState<UserSubscription>({
-    active: false,
-    expiresAt: null
-  });
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminMessage, setAdminMessage] = useState<string>("");
-  const [tickets, setTickets] = useState<ExtendedTicket[]>([]);
-  const [purchasePlan, setPurchasePlan] = useState<Plan | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState<string>("Пользователь");
+// Create a component to handle authentication redirects
+const AuthRedirectHandler: React.FC = () => {
+  const location = useLocation();
 
-  // Report State
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [selectedServerForReport, setSelectedServerForReport] = useState<ServerLocation | null>(null);
-  const [reportText, setReportText] = useState("");
-  const [reportOS, setReportOS] = useState<OSType>(OSType.IOS);
-  const [reportProvider, setReportProvider] = useState("");
-  const [reportRegion, setReportRegion] = useState("");
-  
-  // Auth State
-  const [isAuthenticatedState, setIsAuthenticatedState] = useState(false);
-  const [authMethod, setAuthMethod] = useState<'telegram' | 'browser' | 'none'>('none');
-  
-  // Initialize Telegram WebApp and check authentication
   useEffect(() => {
     // Initialize Telegram WebApp if in Telegram
     initializeTelegramWebApp();
@@ -76,19 +54,76 @@ const App: React.FC = () => {
     const authStatus = isAuthenticated();
     const method = getAuthMethod();
     
+    // Only redirect if not on the auth page and not authenticated
+    if (!authStatus && method === 'none' && !isTelegramWebApp() && location.pathname !== '/auth/browser') {
+      // Redirect to browser authentication
+      window.location.href = '/auth/browser';
+    }
+  }, [location.pathname]);
+
+  // Set up event listeners for Telegram WebApp buttons
+  useEffect(() => {
+    if (window.Telegram?.WebApp) {
+      const webApp = window.Telegram.WebApp;
+      
+      // Handle back button if available
+      if (webApp.BackButton) {
+        webApp.BackButton.onClick(() => {
+          // Go back in history or to main page
+          if (window.history.length > 1) {
+            window.history.back();
+          } else {
+            window.location.hash = '#/';
+          }
+        });
+      }
+    }
+  }, []);
+
+  return null;
+};
+
+const App: React.FC = () => {
+  const [balance, setBalance] = useState(0); 
+  const [userSubscription, setUserSubscription] = useState<UserSubscription>({
+    active: false,
+    expiresAt: null
+  });
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminMessage, setAdminMessage] = useState<string>("");
+  const [tickets, setTickets] = useState<ExtendedTicket[]>([]);
+  const [purchasePlan, setPurchasePlan] = useState<Plan | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState<string>("Пользователь");
+
+  // Report State
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [selectedServerForReport, setSelectedServerForReport] = useState<ServerLocation | null>(null);
+  const [reportText, setReportText] = useState("");
+  const [reportOS, setReportOS] = useState<OSType>(OSType.IOS);
+  const [reportProvider, setReportProvider] = useState("");
+  const [reportRegion, setReportRegion] = useState("");
+  
+  // Auth State
+  const [isAuthenticatedState, setIsAuthenticatedState] = useState(false);
+  const [authMethod, setAuthMethod] = useState<'telegram' | 'browser' | 'none'>('none');
+  
+  // Initialize Telegram WebApp and check authentication
+  useEffect(() => {
+    // Initialize Telegram WebApp if in Telegram
+    initializeTelegramWebApp();
+    
+    // Check authentication status
+    const authStatus = isAuthenticated();
+    const method = getAuthMethod();
+    
     setIsAuthenticatedState(authStatus);
     setAuthMethod(method);
     
     if (authStatus) {
       loadUserData();
     } else {
-      // If not authenticated, redirect to auth page (for browser)
-      if (method === 'none' && !isTelegramWebApp()) {
-        // Redirect to browser authentication
-        window.location.href = '/auth/browser';
-      } else {
-        setLoading(false);
-      }
+      setLoading(false);
     }
     
     // Set up event listeners for Telegram WebApp buttons
@@ -311,9 +346,10 @@ ${reportText}`,
 
   return (
     <HashRouter>
+      <AuthRedirectHandler />
       <Routes>
         {/* Authentication route */}
-        <Route path="/auth" element={<Auth />} />
+        <Route path="/auth/browser" element={<Auth />} />
         
         {/* Protected routes */}
         <Route element={<Layout />}>

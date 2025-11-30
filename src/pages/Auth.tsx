@@ -1,21 +1,86 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { redirectToBrowserAuth } from '../services/authService';
 
 const Auth: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authState, setAuthState] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const handleTelegramAuth = () => {
+  // Poll for authentication status
+  useEffect(() => {
+    let pollInterval: NodeJS.Timeout | null = null;
+
+    if (isPolling && authState) {
+      const checkAuthStatus = async () => {
+        try {
+          const response = await fetch(`/auth/status?state=${authState}`);
+          const data = await response.json();
+
+          if (data.status === 'complete') {
+            // Authentication complete, store token and redirect
+            localStorage.setItem('auth_token', data.token);
+            document.cookie = `auth_token=${data.token}; path=/`;
+            setIsPolling(false);
+            navigate('/');
+          } else if (data.status === 'expired') {
+            // Authentication expired
+            setIsPolling(false);
+            setError('Authentication session expired. Please try again.');
+          }
+          // If status is 'pending', continue polling
+        } catch (err) {
+          console.error('Failed to check auth status:', err);
+          // Continue polling even if there's an error
+        }
+      };
+
+      // Start polling every 2 seconds
+      pollInterval = setInterval(checkAuthStatus, 2000);
+      // Also check immediately
+      checkAuthStatus();
+    }
+
+    // Cleanup interval on unmount or when polling stops
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [isPolling, authState, navigate]);
+
+  const handleTelegramAuth = async () => {
     setIsLoading(true);
     setError(null);
     
     try {
-      // Redirect to browser authentication endpoint
-      redirectToBrowserAuth();
+      // Call the browser auth endpoint to get the redirect URL
+      const response = await fetch('/auth/browser');
+      if (response.redirected) {
+        // Extract state parameter from the redirect URL
+        const url = new URL(response.url);
+        const state = url.searchParams.get('start');
+        if (state) {
+          setAuthState(state);
+          setIsPolling(true);
+          // Open Telegram in a new tab/window
+          window.open(response.url, '_blank');
+        } else {
+          setError('Failed to initiate Telegram authentication. Please try again.');
+        }
+      } else {
+        // If not redirected, parse the JSON response
+        const data = await response.json();
+        if (data.error) {
+          setError(data.error);
+        } else {
+          setError('Failed to initiate Telegram authentication. Please try again.');
+        }
+      }
     } catch (err) {
       setError('Failed to initiate Telegram authentication. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -35,6 +100,18 @@ const Auth: React.FC = () => {
             Click the button below to start the authentication process.
           </p>
           
+          {isPolling && (
+            <div className="bg-blue-900 border border-blue-700 text-blue-200 px-4 py-3 rounded-lg mb-6">
+              <div className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Waiting for Telegram authentication... Please check your Telegram app.</span>
+              </div>
+            </div>
+          )}
+          
           {error && (
             <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded-lg mb-6">
               {error}
@@ -43,16 +120,16 @@ const Auth: React.FC = () => {
           
           <button
             onClick={handleTelegramAuth}
-            disabled={isLoading}
+            disabled={isLoading || isPolling}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white font-medium py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center"
           >
-            {isLoading ? (
+            {(isLoading || isPolling) ? (
               <>
                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Authenticating...
+                {isPolling ? 'Waiting for Authentication...' : 'Authenticating...'}
               </>
             ) : (
               <>
@@ -66,7 +143,8 @@ const Auth: React.FC = () => {
         </div>
 
         <div className="text-center text-sm text-gray-500">
-          <p>After authenticating, you'll be redirected back to the application.</p>
+          <p>After clicking the button, you'll be redirected to Telegram to confirm authentication.</p>
+          <p className="mt-2">Once confirmed, you'll be automatically logged in to the application.</p>
         </div>
       </div>
     </div>

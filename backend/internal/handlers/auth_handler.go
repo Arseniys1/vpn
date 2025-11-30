@@ -100,6 +100,48 @@ func (h *AuthHandler) ValidateBrowserToken(c *gin.Context) {
 	})
 }
 
+// CheckAuthStatus checks if the authentication process is complete for a given state
+func (h *AuthHandler) CheckAuthStatus(c *gin.Context) {
+	state := c.Query("state")
+	if state == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing state parameter"})
+		return
+	}
+
+	// First check if the auth session still exists (not expired)
+	var authSession models.AuthSession
+	if err := h.db.DB.Where("state = ? AND expires_at > ?", state, time.Now()).First(&authSession).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// Auth session expired or doesn't exist
+			c.JSON(http.StatusOK, gin.H{"status": "expired"})
+			return
+		}
+		log.Error().Err(err).Msg("Database error")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+
+	// Auth session exists and is not expired, check if there's a browser session associated with it
+	var browserSession models.BrowserSession
+	if err := h.db.DB.Where("auth_state = ?", state).First(&browserSession).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// No browser session created yet, still pending
+			c.JSON(http.StatusOK, gin.H{"status": "pending"})
+			return
+		}
+		log.Error().Err(err).Msg("Database error")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+
+	// If we found a browser session associated with this auth state, authentication is complete
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "complete",
+		"token":   browserSession.Token,
+		"user_id": browserSession.UserID,
+	})
+}
+
 // TelegramWebhook handles incoming Telegram bot commands
 func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 	// Parse the incoming webhook data
@@ -175,6 +217,7 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 			ID:        uuid.New(),
 			Token:     token,
 			UserID:    user.ID,
+			AuthState: state, // Associate with the auth session
 			CreatedAt: time.Now(),
 			ExpiresAt: time.Now().Add(30 * 24 * time.Hour), // 30 days
 		}

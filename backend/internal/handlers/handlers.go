@@ -80,6 +80,9 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, cfg *config.Config, db *database.D
 		// Validate browser token
 		auth.GET("/validate", h.AuthHandler.ValidateBrowserToken)
 
+		// Check authentication status
+		auth.GET("/status", h.AuthHandler.CheckAuthStatus)
+
 		// Telegram OAuth endpoint for browser access
 		auth.GET("/telegram", func(c *gin.Context) {
 			// In a real implementation, this would redirect to Telegram OAuth

@@ -224,17 +224,14 @@ type AuthSession struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
-// BrowserSession represents an authenticated browser session
+// BrowserSession represents a browser authentication session
 type BrowserSession struct {
-	ID        uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	Token     string         `gorm:"not null;uniqueIndex" json:"token"`
-	UserID    uuid.UUID      `gorm:"type:uuid;not null;index" json:"user_id"`
-	CreatedAt time.Time      `json:"created_at"`
-	ExpiresAt time.Time      `json:"expires_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
-
-	// Relations
-	User User `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+	Token     string    `gorm:"uniqueIndex;not null" json:"token"`
+	UserID    uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
+	AuthState string    `gorm:"index" json:"auth_state"` // Add this field to associate with auth session
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 // BeforeCreate hook for User
