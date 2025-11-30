@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -134,7 +136,7 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 	if err := c.ShouldBindJSON(&update); err != nil {
 		log.Error().Err(err).Msg("Failed to parse Telegram webhook")
 		// Telegram expects a 200 OK response even for errors
-		c.JSON(http.StatusOK, gin.H{"error": "Invalid request format"})
+		c.JSON(http.StatusOK, gin.H{})
 		return
 	}
 
@@ -147,11 +149,8 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 		if err := h.db.DB.Where("state = ? AND expires_at > ?", state, time.Now()).First(&authSession).Error; err != nil {
 			log.Warn().Str("state", state).Msg("Invalid or expired authentication session")
 			// Send message to user
-			c.JSON(http.StatusOK, gin.H{
-				"method":  "sendMessage",
-				"chat_id": update.Message.Chat.ID,
-				"text":    "❌ Authentication session expired or invalid. Please try again from the browser.",
-			})
+			sendTelegramMessage(h.db, update.Message.Chat.ID, "❌ Authentication session expired or invalid. Please try again from the browser.")
+			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
 
@@ -159,11 +158,8 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 		user, err := h.getOrCreateUser(update.Message.From.ID, update.Message.From.FirstName, update.Message.From.LastName, update.Message.From.Username)
 		if err != nil {
 			log.Error().Err(err).Int64("telegram_id", update.Message.From.ID).Msg("Failed to get or create user")
-			c.JSON(http.StatusOK, gin.H{
-				"method":  "sendMessage",
-				"chat_id": update.Message.Chat.ID,
-				"text":    "❌ Failed to authenticate. Please try again later.",
-			})
+			sendTelegramMessage(h.db, update.Message.Chat.ID, "❌ Failed to authenticate. Please try again later.")
+			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
 
@@ -179,11 +175,8 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 
 		if err := h.db.DB.Create(&browserSession).Error; err != nil {
 			log.Error().Err(err).Msg("Failed to create browser session")
-			c.JSON(http.StatusOK, gin.H{
-				"method":  "sendMessage",
-				"chat_id": update.Message.Chat.ID,
-				"text":    "❌ Failed to create session. Please try again later.",
-			})
+			sendTelegramMessage(h.db, update.Message.Chat.ID, "❌ Failed to create session. Please try again later.")
+			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
 
@@ -201,11 +194,11 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 		// Store token in user's cookies by redirecting to frontend with token
 		redirectURL := fmt.Sprintf("%s/#/?token=%s", frontendURL, token)
 
-		// Send message to user with link
+		// Send message to user with inline button
 		c.JSON(http.StatusOK, gin.H{
 			"method":  "sendMessage",
 			"chat_id": update.Message.Chat.ID,
-			"text":    fmt.Sprintf("✅ Authentication successful!\n\nClick the button below to continue to the app:", redirectURL),
+			"text":    "✅ Authentication successful!\n\nClick the button below to continue to the app:",
 			"reply_markup": map[string]interface{}{
 				"inline_keyboard": [][]map[string]string{
 					{
@@ -228,7 +221,7 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 	}
 
 	// Default response
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	c.JSON(http.StatusOK, gin.H{})
 }
 
 // getOrCreateUser gets an existing user or creates a new one based on Telegram ID
@@ -322,4 +315,56 @@ func generateRandomString(length int) string {
 		return fmt.Sprintf("%d", time.Now().UnixNano())
 	}
 	return base64.URLEncoding.EncodeToString(bytes)[:length]
+}
+
+// sendTelegramMessage sends a message to a Telegram chat
+func sendTelegramMessage(db *database.DB, chatID int64, text string) {
+	// Get bot token from environment
+	botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
+	if botToken == "" {
+		log.Error().Msg("TELEGRAM_BOT_TOKEN not set")
+		return
+	}
+
+	// Telegram API endpoint for sending messages
+	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", botToken)
+
+	// Prepare the request payload
+	payload := map[string]interface{}{
+		"chat_id": chatID,
+		"text":    text,
+	}
+
+	// Convert payload to JSON
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to marshal payload")
+		return
+	}
+
+	// Create HTTP request
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to create request")
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	// Create HTTP client with timeout
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	// Send request
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to send request")
+		return
+	}
+	defer resp.Body.Close()
+
+	// Check response status
+	if resp.StatusCode != http.StatusOK {
+		log.Error().Int("status_code", resp.StatusCode).Msg("Telegram API returned non-OK status")
+	}
 }
