@@ -29,7 +29,7 @@ server:
 
 telegram:
   bot_token: "YOUR_BOT_TOKEN_HERE"
-  webhook_url: ""
+  webhook_url: "https://yourdomain.com/webhook/telegram"  # Set this to your public URL + /webhook/telegram path
 
 # Environment variables that should be set:
 # TELEGRAM_BOT_USERNAME - Username of your Telegram bot (without @)
