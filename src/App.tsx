@@ -83,7 +83,7 @@ const App: React.FC = () => {
       loadUserData();
     } else {
       // If not authenticated, redirect to auth page (for browser)
-      if (method === 'none' && !window.Telegram?.WebApp.initData) {
+      if (method === 'none' && !isTelegramWebApp()) {
         // Redirect to browser authentication
         window.location.href = '/auth/browser';
       } else {

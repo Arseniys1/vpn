@@ -3,7 +3,15 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080
 
 // Detect if we're in Telegram WebApp
 export const isTelegramWebApp = (): boolean => {
-  return !!(window as any).Telegram?.WebApp?.initData;
+  // Check if Telegram WebApp object exists and has the necessary properties
+  const telegram = (window as any).Telegram;
+  if (!telegram || !telegram.WebApp) {
+    return false;
+  }
+  
+  // For a more reliable check, we can verify multiple properties
+  const webApp = telegram.WebApp;
+  return !!(webApp.ready && webApp.expand && webApp.initData);
 };
 
 // Get Telegram init data
@@ -69,6 +77,7 @@ export const authenticatedApiCall = async (endpoint: string, options: RequestIni
   }
   
   // Add appropriate authentication header
+  // Priority: Telegram initData > Browser token
   if (isTelegram && telegramInitData) {
     headers['X-Telegram-Init-Data'] = telegramInitData;
   } else if (browserToken) {
@@ -149,23 +158,44 @@ export const initializeTelegramWebApp = (): void => {
 
 // Check if user is authenticated
 export const isAuthenticated = (): boolean => {
+  // First check if we're in Telegram WebApp
   if (isTelegramWebApp()) {
-    // For Telegram WebApp, we check if we have initData or if we're properly initialized
+    // For Telegram WebApp, we primarily rely on initData
     const initData = getTelegramInitData();
-    return !!initData || !!getBrowserAuthToken();
+    // If we have initData, we're authenticated via Telegram
+    if (initData) {
+      return true;
+    }
+    // Fallback to browser token if no initData
+    return !!getBrowserAuthToken();
   } else {
+    // For browser access, check for browser token
     return !!getBrowserAuthToken();
   }
 };
 
 // Get authentication method
 export const getAuthMethod = (): 'telegram' | 'browser' | 'none' => {
-  if (isTelegramWebApp() && getTelegramInitData()) {
-    return 'telegram';
-  } else if (getBrowserAuthToken()) {
-    return 'browser';
+  // First check if we're in Telegram WebApp
+  if (isTelegramWebApp()) {
+    // For Telegram WebApp, check if we have initData
+    const initData = getTelegramInitData();
+    if (initData) {
+      return 'telegram';
+    }
+    // If no initData but we have a browser token, it's browser auth
+    if (getBrowserAuthToken()) {
+      return 'browser';
+    }
+    // If neither, then no auth
+    return 'none';
+  } else {
+    // For browser access, check for browser token
+    if (getBrowserAuthToken()) {
+      return 'browser';
+    }
+    return 'none';
   }
-  return 'none';
 };
 
 // Redirect to browser authentication
