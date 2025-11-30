@@ -96,7 +96,7 @@ func main() {
 	r.Use(middleware.CORS())
 
 	// Setup routes
-	h.SetupRoutes(r, cfg.Telegram.BotToken, db)
+	h.SetupRoutes(r, cfg, db)
 
 	// Create HTTP server
 	srv := &http.Server{

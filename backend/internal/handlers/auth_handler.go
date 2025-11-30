@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -16,16 +15,23 @@ import (
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 
+	"xray-vpn-connect/internal/config"
 	"xray-vpn-connect/internal/database"
 	"xray-vpn-connect/internal/models"
 )
 
 type AuthHandler struct {
-	db *database.DB
+	db     *database.DB
+	config *config.Config
 }
 
 func NewAuthHandler(db *database.DB) *AuthHandler {
 	return &AuthHandler{db: db}
+}
+
+// SetConfig sets the configuration for the AuthHandler
+func (h *AuthHandler) SetConfig(cfg *config.Config) {
+	h.config = cfg
 }
 
 // BrowserAuthRedirect redirects browser users to Telegram OAuth
@@ -47,10 +53,10 @@ func (h *AuthHandler) BrowserAuthRedirect(c *gin.Context) {
 		return
 	}
 
-	// Get bot username from environment
-	botUsername := os.Getenv("TELEGRAM_BOT_USERNAME")
+	// Get bot username from config
+	botUsername := h.config.Telegram.BotUsername
 	if botUsername == "" {
-		log.Error().Msg("TELEGRAM_BOT_USERNAME not set")
+		log.Error().Msg("TELEGRAM_BOT_USERNAME not set in config")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Bot configuration error"})
 		return
 	}
@@ -149,7 +155,7 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 		if err := h.db.DB.Where("state = ? AND expires_at > ?", state, time.Now()).First(&authSession).Error; err != nil {
 			log.Warn().Str("state", state).Msg("Invalid or expired authentication session")
 			// Send message to user
-			sendTelegramMessage(h.db, update.Message.Chat.ID, "❌ Authentication session expired or invalid. Please try again from the browser.")
+			sendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Authentication session expired or invalid. Please try again from the browser.")
 			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
@@ -158,7 +164,7 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 		user, err := h.getOrCreateUser(update.Message.From.ID, update.Message.From.FirstName, update.Message.From.LastName, update.Message.From.Username)
 		if err != nil {
 			log.Error().Err(err).Int64("telegram_id", update.Message.From.ID).Msg("Failed to get or create user")
-			sendTelegramMessage(h.db, update.Message.Chat.ID, "❌ Failed to authenticate. Please try again later.")
+			sendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Failed to authenticate. Please try again later.")
 			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
@@ -175,7 +181,7 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 
 		if err := h.db.DB.Create(&browserSession).Error; err != nil {
 			log.Error().Err(err).Msg("Failed to create browser session")
-			sendTelegramMessage(h.db, update.Message.Chat.ID, "❌ Failed to create session. Please try again later.")
+			sendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Failed to create session. Please try again later.")
 			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
@@ -186,7 +192,7 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 		}
 
 		// Send success message to user with link to continue
-		frontendURL := os.Getenv("FRONTEND_URL")
+		frontendURL := h.config.Telegram.FrontendURL
 		if frontendURL == "" {
 			frontendURL = "http://localhost:3000" // default for development
 		}
@@ -318,11 +324,11 @@ func generateRandomString(length int) string {
 }
 
 // sendTelegramMessage sends a message to a Telegram chat
-func sendTelegramMessage(db *database.DB, chatID int64, text string) {
-	// Get bot token from environment
-	botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
+func sendTelegramMessage(db *database.DB, cfg *config.Config, chatID int64, text string) {
+	// Get bot token from config
+	botToken := cfg.Telegram.BotToken
 	if botToken == "" {
-		log.Error().Msg("TELEGRAM_BOT_TOKEN not set")
+		log.Error().Msg("TELEGRAM_BOT_TOKEN not set in config")
 		return
 	}
 

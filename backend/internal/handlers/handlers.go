@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"xray-vpn-connect/internal/config"
 	"xray-vpn-connect/internal/database"
 	"xray-vpn-connect/internal/middleware"
 	"xray-vpn-connect/internal/services"
@@ -41,7 +42,7 @@ func NewHandlers(
 	}
 }
 
-func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string, db *database.DB) {
+func (h *Handlers) SetupRoutes(r *gin.Engine, cfg *config.Config, db *database.DB) {
 	// Add database to context for middleware access
 	r.Use(func(c *gin.Context) {
 		c.Set("db", db)
@@ -63,6 +64,9 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string, db *database.DB) 
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
+
+	// Pass config to AuthHandler
+	h.AuthHandler.SetConfig(cfg)
 
 	// Telegram webhook endpoint (public)
 	r.POST("/webhook/telegram", h.AuthHandler.TelegramWebhook)
@@ -98,7 +102,7 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string, db *database.DB) 
 
 		// Protected routes (require authentication)
 		protected := api.Group("")
-		protected.Use(middleware.HybridAuth(botToken))
+		protected.Use(middleware.HybridAuth(cfg.Telegram.BotToken))
 		{
 			// User routes
 			userRoutes := protected.Group("/users")

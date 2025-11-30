@@ -51,8 +51,10 @@ type ServerConfig struct {
 }
 
 type TelegramConfig struct {
-	BotToken   string `mapstructure:"bot_token"`
-	WebhookURL string `mapstructure:"webhook_url"`
+	BotToken    string `mapstructure:"bot_token"`
+	WebhookURL  string `mapstructure:"webhook_url"`
+	BotUsername string `mapstructure:"bot_username"`
+	FrontendURL string `mapstructure:"frontend_url"`
 }
 
 type JWTConfig struct {
@@ -183,6 +185,14 @@ func overrideWithEnv(config *Config) {
 
 	if viper.IsSet("SERVER_PORT") {
 		config.Server.Port = viper.GetInt("SERVER_PORT")
+	}
+
+	// Telegram config overrides
+	if viper.IsSet("TELEGRAM_BOT_USERNAME") {
+		config.Telegram.BotUsername = viper.GetString("TELEGRAM_BOT_USERNAME")
+	}
+	if viper.IsSet("FRONTEND_URL") {
+		config.Telegram.FrontendURL = viper.GetString("FRONTEND_URL")
 	}
 }
 
