@@ -173,9 +173,9 @@ func handleBrowserAuth(c *gin.Context) {
 	}
 
 	// If no valid authentication found, return unauthorized
+	// Instead of providing a direct auth URL, we'll let the frontend handle this
 	c.JSON(http.StatusUnauthorized, gin.H{
-		"error":    "Authentication required. Please authenticate via Telegram.",
-		"auth_url": "/auth/browser", // Endpoint for browser authentication
+		"error": "Authentication required",
 	})
 	c.Abort()
 }

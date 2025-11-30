@@ -55,22 +55,34 @@ const Auth: React.FC = () => {
     setError(null);
     
     try {
-      // Call the browser auth endpoint to get the redirect URL
-      const response = await fetch('/auth/browser');
-      if (response.redirected) {
-        // Extract state parameter from the redirect URL
-        const url = new URL(response.url);
-        const state = url.searchParams.get('start');
-        if (state) {
-          setAuthState(state);
-          setIsPolling(true);
-          // Open Telegram in a new tab/window
-          window.open(response.url, '_blank');
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+
+      // Call the browser auth endpoint to create an auth session
+      const response = await fetch(`${API_BASE_URL}/auth/browser`);
+      
+      if (response.ok) {
+        // Parse the JSON response to get the auth URL
+        const data = await response.json();
+        const authUrl = data.url;
+        
+        if (authUrl) {
+          // Extract state parameter from the auth URL
+          const url = new URL(authUrl);
+          const state = url.searchParams.get('start');
+          
+          if (state) {
+            setAuthState(state);
+            setIsPolling(true);
+            // Open Telegram auth URL in a new tab/window
+            window.open(authUrl, '_blank');
+          } else {
+            setError('Failed to initiate Telegram authentication. Please try again.');
+          }
         } else {
-          setError('Failed to initiate Telegram authentication. Please try again.');
+          setError('Failed to receive authentication URL. Please try again.');
         }
       } else {
-        // If not redirected, parse the JSON response
+        // Handle error response
         const data = await response.json();
         if (data.error) {
           setError(data.error);

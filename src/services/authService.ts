@@ -96,12 +96,12 @@ export const authenticatedApiCall = async (endpoint: string, options: RequestIni
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: 'Request failed' }));
         
-        // If unauthorized, clear auth and redirect to login if in browser
+        // If unauthorized, clear auth and notify caller to handle redirect
         if (response.status === 401) {
           if (!isTelegram) {
             clearBrowserAuth();
-            // Redirect to auth page or show login
-            window.location.href = '/auth/browser';
+            // Instead of redirecting, we'll throw a specific error that can be caught
+            throw new Error('UNAUTHORIZED_BROWSER');
           }
         }
         
@@ -200,7 +200,8 @@ export const getAuthMethod = (): 'telegram' | 'browser' | 'none' => {
 
 // Redirect to browser authentication
 export const redirectToBrowserAuth = (): void => {
-  window.location.href = `${API_BASE_URL.replace('/api/v1', '')}/auth/browser`;
+  // Instead of redirecting, we'll throw an error that can be caught by components
+  throw new Error('BROWSER_AUTH_REQUIRED');
 };
 
 // Validate browser token

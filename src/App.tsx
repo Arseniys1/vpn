@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Modal from './components/Modal';
 import { Plan, UserSubscription, ServerLocation, OSType } from './types';
 import * as api from './services/api';
-import { initializeTelegramWebApp, isAuthenticated, getAuthMethod, setBrowserAuthToken, isTelegramWebApp } from './services/authService';
+import { initializeTelegramWebApp, isAuthenticated, getAuthMethod } from './services/authService';
 
 // Pages
 import Main from './pages/Main';
@@ -15,73 +15,6 @@ import Support, { ExtendedTicket } from './pages/Support';
 import Instructions from './pages/Instructions';
 import Admin from './pages/Admin';
 import Auth from './pages/Auth';
-
-// Create a component to handle authentication redirects
-const AuthRedirectHandler: React.FC = () => {
-  const location = useLocation();
-
-  useEffect(() => {
-    // Initialize Telegram WebApp if in Telegram
-    initializeTelegramWebApp();
-    
-    // Check for token parameter in URL (from Telegram authentication)
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    
-    // Also check for startapp parameter which Telegram uses for Mini Apps
-    const startApp = urlParams.get('startapp');
-    
-    // If we have a startapp parameter with a token, use that
-    let actualToken = token;
-    if (startApp && startApp.includes('token=')) {
-      const startAppParams = new URLSearchParams(startApp);
-      actualToken = startAppParams.get('token') || token;
-    }
-    
-    if (actualToken) {
-      // Set the token in localStorage and cookies
-      setBrowserAuthToken(actualToken);
-      
-      // Remove token from URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-      
-      // Reload to apply authentication
-      window.location.reload();
-      return;
-    }
-    
-    // Check authentication status
-    const authStatus = isAuthenticated();
-    const method = getAuthMethod();
-    
-    // Only redirect if not on the auth page and not authenticated
-    if (!authStatus && method === 'none' && !isTelegramWebApp() && location.pathname !== '/auth/browser') {
-      // Redirect to browser authentication
-      window.location.href = '/auth/browser';
-    }
-  }, [location.pathname]);
-
-  // Set up event listeners for Telegram WebApp buttons
-  useEffect(() => {
-    if (window.Telegram?.WebApp) {
-      const webApp = window.Telegram.WebApp;
-      
-      // Handle back button if available
-      if (webApp.BackButton) {
-        webApp.BackButton.onClick(() => {
-          // Go back in history or to main page
-          if (window.history.length > 1) {
-            window.history.back();
-          } else {
-            window.location.hash = '#/';
-          }
-        });
-      }
-    }
-  }, []);
-
-  return null;
-};
 
 const App: React.FC = () => {
   const [balance, setBalance] = useState(0); 
@@ -346,12 +279,11 @@ ${reportText}`,
 
   return (
     <HashRouter>
-      <AuthRedirectHandler />
       <Routes>
         {/* Authentication route */}
         <Route path="/auth/browser" element={<Auth />} />
         
-        {/* Protected routes */}
+        {/* Protected routes - these will handle their own authentication checks */}
         <Route element={<Layout />}>
           <Route index element={
             <Main 

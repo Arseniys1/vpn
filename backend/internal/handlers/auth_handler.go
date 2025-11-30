@@ -64,8 +64,9 @@ func (h *AuthHandler) BrowserAuthRedirect(c *gin.Context) {
 	// Construct Telegram bot URL with state parameter
 	telegramURL := fmt.Sprintf("https://t.me/%s?start=%s", botUsername, state)
 
-	// Redirect user to Telegram bot
-	c.Redirect(http.StatusTemporaryRedirect, telegramURL)
+	c.JSON(http.StatusOK, gin.H{
+		"url": telegramURL,
+	})
 }
 
 // TelegramOAuthCallback handles the callback from Telegram OAuth
