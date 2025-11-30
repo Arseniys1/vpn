@@ -53,6 +53,8 @@ You can override config with environment variables:
 - `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_PORT`
 - `RABBITMQ_URL`
 - `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_BOT_USERNAME` - Telegram bot username (without @)
+- `FRONTEND_URL` - Frontend application URL (e.g., https://yourdomain.com)
 - `JWT_SECRET`
 - `APP_ENV` (development/production)
 - `LOG_LEVEL` (debug/info/warn/error)

@@ -31,6 +31,10 @@ telegram:
   bot_token: "YOUR_BOT_TOKEN_HERE"
   webhook_url: ""
 
+# Environment variables that should be set:
+# TELEGRAM_BOT_USERNAME - Username of your Telegram bot (without @)
+# FRONTEND_URL - URL of your frontend application (e.g., https://yourdomain.com)
+
 jwt:
   secret: "change-me-in-production"
   expiration: 24h

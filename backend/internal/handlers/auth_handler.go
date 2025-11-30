@@ -132,7 +132,9 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&update); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		log.Error().Err(err).Msg("Failed to parse Telegram webhook")
+		// Telegram expects a 200 OK response even for errors
+		c.JSON(http.StatusOK, gin.H{"error": "Invalid request format"})
 		return
 	}
 
@@ -143,14 +145,25 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 		// Validate the state parameter
 		var authSession models.AuthSession
 		if err := h.db.DB.Where("state = ? AND expires_at > ?", state, time.Now()).First(&authSession).Error; err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired authentication session"})
+			log.Warn().Str("state", state).Msg("Invalid or expired authentication session")
+			// Send message to user
+			c.JSON(http.StatusOK, gin.H{
+				"method":  "sendMessage",
+				"chat_id": update.Message.Chat.ID,
+				"text":    "❌ Authentication session expired or invalid. Please try again from the browser.",
+			})
 			return
 		}
 
 		// Get or create user based on Telegram ID
 		user, err := h.getOrCreateUser(update.Message.From.ID, update.Message.From.FirstName, update.Message.From.LastName, update.Message.From.Username)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get or create user"})
+			log.Error().Err(err).Int64("telegram_id", update.Message.From.ID).Msg("Failed to get or create user")
+			c.JSON(http.StatusOK, gin.H{
+				"method":  "sendMessage",
+				"chat_id": update.Message.Chat.ID,
+				"text":    "❌ Failed to authenticate. Please try again later.",
+			})
 			return
 		}
 
@@ -165,12 +178,19 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 		}
 
 		if err := h.db.DB.Create(&browserSession).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create browser session"})
+			log.Error().Err(err).Msg("Failed to create browser session")
+			c.JSON(http.StatusOK, gin.H{
+				"method":  "sendMessage",
+				"chat_id": update.Message.Chat.ID,
+				"text":    "❌ Failed to create session. Please try again later.",
+			})
 			return
 		}
 
 		// Delete the used auth session to prevent replay attacks
-		h.db.DB.Delete(&authSession)
+		if err := h.db.DB.Delete(&authSession).Error; err != nil {
+			log.Warn().Err(err).Msg("Failed to delete auth session")
+		}
 
 		// Send success message to user with link to continue
 		frontendURL := os.Getenv("FRONTEND_URL")
@@ -183,10 +203,16 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 
 		// Send message to user with link
 		c.JSON(http.StatusOK, gin.H{
-			"method":     "sendMessage",
-			"chat_id":    update.Message.Chat.ID,
-			"text":       fmt.Sprintf("✅ Authentication successful! Click the link below to continue:\n\n%s", redirectURL),
-			"parse_mode": "HTML",
+			"method":  "sendMessage",
+			"chat_id": update.Message.Chat.ID,
+			"text":    fmt.Sprintf("✅ Authentication successful!\n\nClick the button below to continue to the app:", redirectURL),
+			"reply_markup": map[string]interface{}{
+				"inline_keyboard": [][]map[string]string{
+					{
+						{"text": "Continue to App", "url": redirectURL},
+					},
+				},
+			},
 		})
 		return
 	}

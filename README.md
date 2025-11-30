@@ -275,6 +275,8 @@ Key variables:
 - `DB_PASSWORD_FILE` - Database password (Docker secret)
 - `TELEGRAM_BOT_TOKEN_FILE` - Telegram bot token (Docker secret)
 - `JWT_SECRET_FILE` - JWT signing key (Docker secret)
+- `TELEGRAM_BOT_USERNAME` - Telegram bot username (without @)
+- `FRONTEND_URL` - Frontend application URL (e.g., https://yourdomain.com)
 
 ### Frontend
 See `.env.example` for configuration.
