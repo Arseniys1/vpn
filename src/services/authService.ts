@@ -3,7 +3,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080
 
 // Detect if we're in Telegram WebApp
 export const isTelegramWebApp = (): boolean => {
-  return !!(window as any).Telegram?.WebApp;
+  return !!(window as any).Telegram?.WebApp?.initData;
 };
 
 // Get Telegram init data
