@@ -92,7 +92,7 @@ export const authenticatedApiCall = async (endpoint: string, options: RequestIni
           if (!isTelegram) {
             clearBrowserAuth();
             // Redirect to auth page or show login
-            window.location.href = '/auth/telegram';
+            window.location.href = '/auth/browser';
           }
         }
         
@@ -140,4 +140,20 @@ export const getAuthMethod = (): 'telegram' | 'browser' | 'none' => {
     return 'browser';
   }
   return 'none';
+};
+
+// Redirect to browser authentication
+export const redirectToBrowserAuth = (): void => {
+  window.location.href = `${API_BASE_URL.replace('/api/v1', '')}/auth/browser`;
+};
+
+// Validate browser token
+export const validateBrowserToken = async (token: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${API_BASE_URL.replace('/api/v1', '')}/auth/validate?token=${token}`);
+    return response.ok;
+  } catch (error) {
+    console.error('Token validation failed:', error);
+    return false;
+  }
 };

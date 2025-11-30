@@ -19,6 +19,7 @@ type Handlers struct {
 	ConnectionHandler   *ConnectionHandler
 	AdminHandler        *AdminHandler
 	SupportHandler      *SupportHandler
+	AuthHandler         *AuthHandler
 }
 
 func NewHandlers(
@@ -36,10 +37,17 @@ func NewHandlers(
 		ConnectionHandler:   NewConnectionHandler(connectionService, userService),
 		AdminHandler:        NewAdminHandler(db),
 		SupportHandler:      NewSupportHandler(db, userService),
+		AuthHandler:         NewAuthHandler(db),
 	}
 }
 
 func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string, db *database.DB) {
+	// Add database to context for middleware access
+	r.Use(func(c *gin.Context) {
+		c.Set("db", db)
+		c.Next()
+	})
+
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "timestamp": time.Now().Unix()})
@@ -59,6 +67,12 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, botToken string, db *database.DB) 
 	// Authentication endpoints
 	auth := r.Group("/auth")
 	{
+		// Browser authentication - redirect to Telegram
+		auth.GET("/browser", h.AuthHandler.BrowserAuthRedirect)
+
+		// Validate browser token
+		auth.GET("/validate", h.AuthHandler.ValidateBrowserToken)
+
 		// Telegram OAuth endpoint for browser access
 		auth.GET("/telegram", func(c *gin.Context) {
 			// In a real implementation, this would redirect to Telegram OAuth

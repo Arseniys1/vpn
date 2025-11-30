@@ -216,6 +216,27 @@ type QueueTask struct {
 	Data         map[string]interface{} `json:"data,omitempty"`
 }
 
+// AuthSession represents a browser authentication session
+type AuthSession struct {
+	ID        uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	State     string    `gorm:"not null;uniqueIndex" json:"state"`
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+// BrowserSession represents an authenticated browser session
+type BrowserSession struct {
+	ID        uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Token     string         `gorm:"not null;uniqueIndex" json:"token"`
+	UserID    uuid.UUID      `gorm:"type:uuid;not null;index" json:"user_id"`
+	CreatedAt time.Time      `json:"created_at"`
+	ExpiresAt time.Time      `json:"expires_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// Relations
+	User User `gorm:"foreignKey:UserID" json:"user,omitempty"`
+}
+
 // BeforeCreate hook for User
 func (u *User) BeforeCreate(tx *gorm.DB) error {
 	if u.ID == uuid.Nil {

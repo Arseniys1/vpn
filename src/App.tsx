@@ -14,6 +14,7 @@ import Referrals from './pages/Referrals';
 import Support, { ExtendedTicket } from './pages/Support';
 import Instructions from './pages/Instructions';
 import Admin from './pages/Admin';
+import Auth from './pages/Auth';
 
 const App: React.FC = () => {
   const [balance, setBalance] = useState(0); 
@@ -57,7 +58,8 @@ const App: React.FC = () => {
     } else {
       // If not authenticated, redirect to auth page (for browser)
       if (method === 'none' && !window.Telegram?.WebApp) {
-        window.location.href = '/auth/telegram';
+        // Redirect to browser authentication
+        window.location.href = '/auth/browser';
       } else {
         setLoading(false);
       }
@@ -200,20 +202,21 @@ ${reportText}`,
       if (window.Telegram?.WebApp?.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
-      
+
       if (window.Telegram?.WebApp?.showAlert) {
-        window.Telegram.WebApp.showAlert('Спасибо! Ваш отчет отправлен администраторам.');
+        window.Telegram.WebApp.showAlert('Отчет успешно отправлен!');
       }
-      
+
       setIsReportModalOpen(false);
     } catch (error: any) {
-      console.error('Report failed:', error);
+      console.error('Failed to send report:', error);
       if (window.Telegram?.WebApp?.showAlert) {
         window.Telegram.WebApp.showAlert(error.message || 'Ошибка отправки отчета');
       }
     }
   };
 
+  // Support ticket functions
   const handleCreateTicket = async (subject: string, message: string, category: string) => {
     try {
       await api.createTicket({ subject, message, category });
@@ -225,60 +228,39 @@ ${reportText}`,
       if (window.Telegram?.WebApp?.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
+      
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert('Тикет успешно создан!');
+      }
     } catch (error: any) {
-      console.error('Create ticket failed:', error);
+      console.error('Failed to create ticket:', error);
       if (window.Telegram?.WebApp?.showAlert) {
         window.Telegram.WebApp.showAlert(error.message || 'Ошибка создания тикета');
       }
     }
   };
 
-  const handleAddTicketMessage = async (ticketId: string, message: string) => {
+  const handleAddMessage = async (ticketId: string, message: string) => {
     try {
       await api.addTicketMessage(ticketId, message);
       
-      // Reload tickets
-      const ticketsData = await api.getMyTickets();
-      setTickets(ticketsData.tickets || []);
-      
       if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.selectionChanged();
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
     } catch (error: any) {
-      console.error('Add message failed:', error);
+      console.error('Failed to add message:', error);
       if (window.Telegram?.WebApp?.showAlert) {
         window.Telegram.WebApp.showAlert(error.message || 'Ошибка отправки сообщения');
       }
     }
   };
 
-  // Validation check
-  const isReportFormValid = reportText.trim().length > 0 && reportProvider.trim().length > 0 && reportRegion.trim().length > 0;
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-tg-bg">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-tg-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-tg-hint">Загрузка...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show auth screen if not authenticated in browser
-  if (!isAuthenticatedState && authMethod === 'none' && !window.Telegram?.WebApp) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-tg-bg">
-        <div className="text-center p-6">
-          <h1 className="text-2xl font-bold text-tg-text mb-4">Добро пожаловать</h1>
-          <p className="text-tg-hint mb-6">Пожалуйста, авторизуйтесь через Telegram</p>
-          <a 
-            href="/auth/telegram" 
-            className="bg-tg-blue text-white py-3 px-6 rounded-xl font-semibold inline-block"
-          >
-            Авторизоваться через Telegram
-          </a>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+          <p className="text-gray-400">Загрузка...</p>
         </div>
       </div>
     );
@@ -287,108 +269,146 @@ ${reportText}`,
   return (
     <HashRouter>
       <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Main subscription={userSubscription} adminMessage={adminMessage} isAdmin={isAdmin} userName={userName} />} />
-          <Route path="servers" element={<Tunnels subscription={userSubscription} onReport={openReportModal} />} />
-          <Route path="shop" element={<Shop balance={balance} subscription={userSubscription} onBuy={handleBuyPlanClick} onTopUp={handleTopUp} />} />
-          <Route path="referrals" element={<Referrals />} />
-          <Route path="support" element={<Support tickets={tickets} onCreateTicket={handleCreateTicket} onAddMessage={handleAddTicketMessage} />} />
-          <Route path="instructions" element={<Instructions />} />
-          {isAdmin && <Route path="admin" element={<Admin />} />}
+        {/* Authentication route */}
+        <Route path="/auth" element={<Auth />} />
+        
+        {/* Protected routes */}
+        <Route element={<Layout />}>
+          <Route index element={
+            <Main 
+              subscription={userSubscription} 
+              adminMessage={adminMessage} 
+              isAdmin={isAdmin}
+              userName={userName}
+            />
+          } />
+          <Route path="/tunnels" element={
+            <Tunnels 
+              subscription={userSubscription} 
+              onReport={openReportModal} 
+            />
+          } />
+          <Route path="/shop" element={
+            <Shop 
+              balance={balance} 
+              subscription={userSubscription} 
+              onBuy={handleBuyPlanClick} 
+              onTopUp={handleTopUp} 
+            />
+          } />
+          <Route path="/referrals" element={<Referrals />} />
+          <Route path="/support" element={
+            <Support 
+              tickets={tickets} 
+              onCreateTicket={handleCreateTicket} 
+              onAddMessage={handleAddMessage} 
+            />
+          } />
+          <Route path="/instructions" element={<Instructions />} />
+          {isAdmin && <Route path="/admin/*" element={<Admin />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
-      
-      {/* Purchase Modal */}
-      <Modal
-        isOpen={!!purchasePlan}
-        onClose={() => setPurchasePlan(null)}
-        title="Подтверждение"
-      >
-        <div className="flex flex-col items-center pt-2 pb-4">
-            <div className="w-16 h-16 bg-tg-blue/10 rounded-full flex items-center justify-center mb-4 text-tg-blue">
-                <i className="fas fa-cart-shopping text-3xl"></i>
-            </div>
-            <h3 className="text-xl font-semibold mb-2 text-tg-text">{purchasePlan?.name}</h3>
-            <p className="text-tg-hint text-center mb-6 text-sm px-4">
-                С вашего баланса будет списано <span className="text-tg-text font-bold">{purchasePlan?.priceStars} звезд</span>.
-            </p>
-            
-            <button 
-                onClick={handleConfirmPurchase}
-                className="w-full bg-tg-blue text-white py-3.5 rounded-xl font-semibold text-[16px] active:scale-95 transition-transform mb-3 shadow-lg shadow-tg-blue/20"
-            >
-                Оплатить {purchasePlan?.priceStars} ★
-            </button>
-            <button 
+
+      {/* Purchase Confirmation Modal */}
+      {purchasePlan && (
+        <Modal isOpen={true} onClose={() => setPurchasePlan(null)} title="Подтверждение покупки">
+          <div className="text-center">
+            <h3 className="text-xl font-semibold text-white mb-2">{purchasePlan.name}</h3>
+            <p className="text-gray-300 mb-4">{purchasePlan.priceStars} ★</p>
+            {purchasePlan.discount && (
+              <span className="inline-block bg-green-900 text-green-300 px-2 py-1 rounded text-sm mb-4">
+                {purchasePlan.discount}
+              </span>
+            )}
+            <div className="flex gap-3">
+              <button
                 onClick={() => setPurchasePlan(null)}
-                className="w-full text-tg-red py-3.5 rounded-xl font-semibold text-[16px] active:bg-tg-hover/50 transition-colors"
-            >
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition"
+              >
                 Отмена
-            </button>
-        </div>
-      </Modal>
+              </button>
+              <button
+                onClick={handleConfirmPurchase}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition"
+              >
+                Подтвердить
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
-      {/* Report Modal */}
-      <Modal 
-        isOpen={isReportModalOpen} 
-        onClose={() => setIsReportModalOpen(false)} 
-        title={`Проблема: ${selectedServerForReport?.country}`}
-      >
-        <div className="space-y-4 pt-2">
+      {/* Server Report Modal */}
+      {isReportModalOpen && selectedServerForReport && (
+        <Modal isOpen={true} onClose={() => setIsReportModalOpen(false)} title={`Сообщить о проблеме - ${selectedServerForReport.country}`}>
+          <div className="space-y-4">
             <div>
-                <label className="text-[11px] text-tg-hint font-bold uppercase mb-1 block">ОС устройства</label>
-                <div className="flex bg-tg-bg p-1 rounded-lg border border-tg-separator overflow-x-auto">
-                    {Object.values(OSType).map(os => (
-                        <button 
-                        key={os}
-                        onClick={() => setReportOS(os)}
-                        className={`flex-1 py-1.5 px-2 text-xs rounded whitespace-nowrap transition-colors ${reportOS === os ? 'bg-tg-blue text-white shadow' : 'text-tg-hint'}`}
-                        >
-                        {os}
-                        </button>
-                    ))}
-                </div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">ОС</label>
+              <select
+                value={reportOS}
+                onChange={(e) => setReportOS(e.target.value as OSType)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+              >
+                <option value={OSType.IOS}>iOS</option>
+                <option value={OSType.ANDROID}>Android</option>
+                <option value={OSType.WINDOWS}>Windows</option>
+                <option value={OSType.MACOS}>macOS</option>
+                <option value={OSType.LINUX}>Linux</option>
+              </select>
             </div>
             
-            <div className="flex space-x-2">
-                <div className="flex-1">
-                    <input 
-                        className="w-full bg-tg-bg border border-tg-separator rounded-xl p-3 text-[14px] text-tg-text focus:outline-none focus:border-tg-blue placeholder-tg-hint"
-                        placeholder="Провайдер (МТС...)"
-                        value={reportProvider}
-                        onChange={(e) => setReportProvider(e.target.value)}
-                    />
-                </div>
-                <div className="flex-1">
-                    <input 
-                        className="w-full bg-tg-bg border border-tg-separator rounded-xl p-3 text-[14px] text-tg-text focus:outline-none focus:border-tg-blue placeholder-tg-hint"
-                        placeholder="Регион (Москва...)"
-                        value={reportRegion}
-                        onChange={(e) => setReportRegion(e.target.value)}
-                    />
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Провайдер</label>
+              <input
+                type="text"
+                value={reportProvider}
+                onChange={(e) => setReportProvider(e.target.value)}
+                placeholder="Например: МТС, Билайн"
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400"
+              />
             </div>
-
-            <textarea
-                className="w-full bg-tg-bg border border-tg-separator rounded-xl p-3 text-[15px] text-tg-text focus:outline-none focus:border-tg-blue placeholder-tg-hint resize-none"
-                placeholder="Опишите проблему..."
-                rows={3}
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Регион</label>
+              <input
+                type="text"
+                value={reportRegion}
+                onChange={(e) => setReportRegion(e.target.value)}
+                placeholder="Например: Москва, Санкт-Петербург"
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Описание проблемы</label>
+              <textarea
                 value={reportText}
                 onChange={(e) => setReportText(e.target.value)}
-            />
-            <button
+                placeholder="Опишите проблему с подключением..."
+                rows={4}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400"
+              />
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsReportModalOpen(false)}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition"
+              >
+                Отмена
+              </button>
+              <button
                 onClick={handleSendReport}
-                disabled={!isReportFormValid}
-                className={`w-full py-3.5 rounded-xl font-semibold flex items-center justify-center space-x-2 transition-all shadow-lg ${
-                    !isReportFormValid ? 'bg-tg-separator text-tg-hint cursor-not-allowed' : 'bg-tg-blue text-white active:scale-95 shadow-tg-blue/20'
-                }`}
-            >
-                <i className="fas fa-paper-plane"></i>
-                <span>Отправить</span>
-            </button>
-        </div>
-      </Modal>
+                disabled={!reportText.trim()}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white py-2 px-4 rounded-lg transition"
+              >
+                Отправить
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </HashRouter>
   );
 };

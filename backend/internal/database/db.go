@@ -77,7 +77,10 @@ func (db *DB) AutoMigrate() error {
 		&models.SupportTicket{},
 		&models.TicketMessage{},
 		&models.ServerReport{},
+		&models.ServerUser{},
 		&models.ReferralStats{},
+		&models.AuthSession{},
+		&models.BrowserSession{},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

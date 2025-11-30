@@ -3,9 +3,14 @@ package middleware
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"gorm.io/gorm"
+
+	"xray-vpn-connect/internal/database"
+	"xray-vpn-connect/internal/models"
 )
 
 // HybridAuth handles authentication for both Telegram WebApp and browser access
@@ -88,41 +93,89 @@ func handleTelegramAuth(c *gin.Context, botToken string) {
 }
 
 func handleBrowserAuth(c *gin.Context) {
-	// For browser access, we'll check for a session token or OAuth
-	// This is a simplified implementation - in production, you would implement
-	// proper OAuth flow with Telegram or session-based authentication
+	// For browser access, we'll check for a session token
+
+	// Get database instance from context
+	dbInterface, exists := c.Get("db")
+	if !exists {
+		log.Error().Msg("Database not found in context")
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Internal server error",
+		})
+		c.Abort()
+		return
+	}
+
+	db, ok := dbInterface.(*database.DB)
+	if !ok {
+		log.Error().Msg("Invalid database type in context")
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Internal server error",
+		})
+		c.Abort()
+		return
+	}
 
 	// Check for Authorization header (Bearer token)
 	authHeader := c.GetHeader("Authorization")
 	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
 		token := strings.TrimPrefix(authHeader, "Bearer ")
-		// In a real implementation, you would validate the token here
-		// For now, we'll just check if it's a valid format
-		if len(token) > 10 {
-			// Mock user data for demonstration
-			// In a real implementation, you would fetch user data from database
-			c.Set("user_id", "browser_user_123")
-			c.Set("auth_method", "browser")
+
+		// Validate the token against database
+		var session models.BrowserSession
+		if err := db.DB.Where("token = ? AND expires_at > ?", token, time.Now()).First(&session).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"error": "Invalid or expired token",
+				})
+				c.Abort()
+				return
+			}
+			log.Error().Err(err).Msg("Database error")
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Internal server error",
+			})
+			c.Abort()
 			return
 		}
+
+		// Token is valid, set user info in context
+		c.Set("user_id", session.UserID)
+		c.Set("auth_method", "browser")
+		return
 	}
 
 	// Alternative: Check for session cookie
 	sessionCookie, err := c.Cookie("session_token")
 	if err == nil && sessionCookie != "" {
-		// In a real implementation, you would validate the session token
-		// For now, we'll just check if it exists
-		if len(sessionCookie) > 10 {
-			c.Set("user_id", "browser_user_123")
-			c.Set("auth_method", "browser")
+		// Validate the session token against database
+		var session models.BrowserSession
+		if err := db.DB.Where("token = ? AND expires_at > ?", sessionCookie, time.Now()).First(&session).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"error": "Invalid or expired session",
+				})
+				c.Abort()
+				return
+			}
+			log.Error().Err(err).Msg("Database error")
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Internal server error",
+			})
+			c.Abort()
 			return
 		}
+
+		// Session is valid, set user info in context
+		c.Set("user_id", session.UserID)
+		c.Set("auth_method", "browser")
+		return
 	}
 
 	// If no valid authentication found, return unauthorized
 	c.JSON(http.StatusUnauthorized, gin.H{
-		"error":    "Authentication required. Please authenticate via Telegram or provide valid credentials.",
-		"auth_url": "/auth/telegram", // Endpoint for Telegram OAuth
+		"error":    "Authentication required. Please authenticate via Telegram.",
+		"auth_url": "/auth/browser", // Endpoint for browser authentication
 	})
 	c.Abort()
 }
