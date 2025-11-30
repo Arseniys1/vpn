@@ -26,6 +26,17 @@ declare global {
           buttons?: {id?: string; type?: 'default' | 'ok' | 'close' | 'cancel' | 'destructive', text?: string}[];
         }, callback?: (id: string) => void) => void;
         showAlert: (message: string, callback?: () => void) => void;
+        MainButton?: {
+          setParams: (params: { text: string; color?: string; text_color?: string }) => void;
+          onClick: (callback: () => void) => void;
+          show: () => void;
+          hide: () => void;
+        };
+        BackButton?: {
+          onClick: (callback: () => void) => void;
+          show: () => void;
+          hide: () => void;
+        };
       };
     };
   }

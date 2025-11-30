@@ -197,18 +197,20 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 			frontendURL = "http://localhost:3000" // default for development
 		}
 
-		// Store token in user's cookies by redirecting to frontend with token
-		redirectURL := fmt.Sprintf("%s/#/?token=%s", frontendURL, token)
-
 		// Send message to user with inline button
 		c.JSON(http.StatusOK, gin.H{
 			"method":  "sendMessage",
 			"chat_id": update.Message.Chat.ID,
 			"text":    "✅ Authentication successful!\n\nClick the button below to continue to the app:",
 			"reply_markup": map[string]interface{}{
-				"inline_keyboard": [][]map[string]string{
+				"inline_keyboard": [][]map[string]interface{}{
 					{
-						{"text": "Continue to App", "url": redirectURL},
+						{
+							"text": "Continue to App",
+							"web_app": map[string]string{
+								"url": frontendURL,
+							},
+						},
 					},
 				},
 			},
@@ -216,17 +218,74 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 		return
 	}
 
-	// Handle plain /start command (without state)
-	if update.Message.Text == "/start" {
-		c.JSON(http.StatusOK, gin.H{
-			"method":  "sendMessage",
-			"chat_id": update.Message.Chat.ID,
-			"text":    "Welcome to VPN Connect! To use this service in your browser, please visit our website and click 'Authenticate with Telegram'.",
-		})
+	// Handle any command (including /start without state) with a proper response and button
+	if update.Message.Text != "" {
+		// Check if bot username is configured
+		if h.config.Telegram.BotUsername == "" {
+			log.Warn().Msg("TELEGRAM_BOT_USERNAME not configured")
+			c.JSON(http.StatusOK, gin.H{
+				"method":  "sendMessage",
+				"chat_id": update.Message.Chat.ID,
+				"text":    "❌ Bot is not properly configured. Please contact the administrator.",
+			})
+			return
+		}
+
+		// Get frontend URL from config
+		frontendURL := h.config.Telegram.FrontendURL
+		if frontendURL == "" {
+			frontendURL = "https://your-domain.com" // fallback
+		}
+
+		// Handle specific commands
+		switch update.Message.Text {
+		case "/start", "/help", "/info":
+			helpText := "🌟 Welcome to VPN Connect!\n\n"
+			helpText += "This bot allows you to manage your VPN subscription and connections directly from Telegram.\n\n"
+			helpText += "Click the button below to open the application:"
+
+			// Send message with button to open Mini App
+			c.JSON(http.StatusOK, gin.H{
+				"method":  "sendMessage",
+				"chat_id": update.Message.Chat.ID,
+				"text":    helpText,
+				"reply_markup": map[string]interface{}{
+					"inline_keyboard": [][]map[string]interface{}{
+						{
+							{
+								"text": "Open VPN App",
+								"web_app": map[string]string{
+									"url": frontendURL,
+								},
+							},
+						},
+					},
+				},
+			})
+		default:
+			// For any other command, show help
+			c.JSON(http.StatusOK, gin.H{
+				"method":  "sendMessage",
+				"chat_id": update.Message.Chat.ID,
+				"text":    "I didn't understand that command. Click the button below to open the VPN application:",
+				"reply_markup": map[string]interface{}{
+					"inline_keyboard": [][]map[string]interface{}{
+						{
+							{
+								"text": "Open VPN App",
+								"web_app": map[string]string{
+									"url": frontendURL,
+								},
+							},
+						},
+					},
+				},
+			})
+		}
 		return
 	}
 
-	// Default response
+	// Default response for non-message updates (e.g., callback queries)
 	c.JSON(http.StatusOK, gin.H{})
 }
 

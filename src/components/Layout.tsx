@@ -19,7 +19,7 @@ const Layout: React.FC = () => {
             <i className="fas fa-house text-xl mb-1"></i>
             <span>Главная</span>
           </NavLink>
-          <NavLink to="/servers" className={navClass}>
+          <NavLink to="/tunnels" className={navClass}>
             <i className="fas fa-server text-xl mb-1"></i>
             <span>Серверы</span>
           </NavLink>
@@ -42,4 +42,3 @@ const Layout: React.FC = () => {
 };
 
 export default Layout;
-

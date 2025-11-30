@@ -4,7 +4,7 @@ import Layout from './components/Layout';
 import Modal from './components/Modal';
 import { Plan, UserSubscription, ServerLocation, OSType } from './types';
 import * as api from './services/api';
-import { initializeTelegramWebApp, isAuthenticated, getAuthMethod, setBrowserAuthToken } from './services/authService';
+import { initializeTelegramWebApp, isAuthenticated, getAuthMethod, setBrowserAuthToken, isTelegramWebApp } from './services/authService';
 
 // Pages
 import Main from './pages/Main';
@@ -50,9 +50,19 @@ const App: React.FC = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     
-    if (token) {
+    // Also check for startapp parameter which Telegram uses for Mini Apps
+    const startApp = urlParams.get('startapp');
+    
+    // If we have a startapp parameter with a token, use that
+    let actualToken = token;
+    if (startApp && startApp.includes('token=')) {
+      const startAppParams = new URLSearchParams(startApp);
+      actualToken = startAppParams.get('token') || token;
+    }
+    
+    if (actualToken) {
       // Set the token in localStorage and cookies
-      setBrowserAuthToken(token);
+      setBrowserAuthToken(actualToken);
       
       // Remove token from URL
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -78,6 +88,23 @@ const App: React.FC = () => {
         window.location.href = '/auth/browser';
       } else {
         setLoading(false);
+      }
+    }
+    
+    // Set up event listeners for Telegram WebApp buttons
+    if (window.Telegram?.WebApp) {
+      const webApp = window.Telegram.WebApp;
+      
+      // Handle back button if available
+      if (webApp.BackButton) {
+        webApp.BackButton.onClick(() => {
+          // Go back in history or to main page
+          if (window.history.length > 1) {
+            window.history.back();
+          } else {
+            window.location.hash = '#/';
+          }
+        });
       }
     }
   }, []);
