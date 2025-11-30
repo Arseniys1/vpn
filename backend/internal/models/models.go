@@ -143,7 +143,7 @@ type SupportTicket struct {
 
 	// Relations
 	User     User            `gorm:"foreignKey:UserID" json:"user,omitempty"`
-	Messages []TicketMessage `json:"messages,omitempty"`
+	Messages []TicketMessage `gorm:"foreignKey:TicketID" json:"messages,omitempty"`
 }
 
 // TicketMessage represents a message in a support ticket
