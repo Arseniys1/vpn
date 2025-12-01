@@ -110,7 +110,7 @@ const Main: React.FC<MainProps> = ({ subscription, adminMessage, isAdmin, userNa
               </TgCard>
             )}
             <div className="grid grid-cols-2 gap-3">
-                <TgCard className="p-4 active:scale-95 transition-transform cursor-pointer hover:bg-tg-hover" onClick={() => navigate('/servers')}>
+                <TgCard className="p-4 active:scale-95 transition-transform cursor-pointer hover:bg-tg-hover" onClick={() => navigate('/tunnels')}>
                 <div className="flex flex-col items-center text-center">
                     <div className="w-10 h-10 rounded-full bg-tg-blue/10 text-tg-blue flex items-center justify-center mb-2">
                     <i className="fas fa-bolt"></i>
