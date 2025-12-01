@@ -65,8 +65,7 @@ const Auth: React.FC = () => {
       if (state) {
         setAuthState(state);
         setIsPolling(true);
-        // Open Telegram in a new tab/window
-        window.open(redirectUrl, '_blank');
+        window.location.href = redirectUrl;
       } else {
         setError('Failed to initiate Telegram authentication. Please try again.');
       }
