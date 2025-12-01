@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import SectionHeader from '../components/SectionHeader';
 import TgCard from '../components/TgCard';
 import * as api from '../services/api';
+import {isTelegramWebApp} from "@/services/authService.ts";
 
 const Referrals: React.FC = () => {
     const [referralStats, setReferralStats] = useState({
@@ -30,10 +31,10 @@ const Referrals: React.FC = () => {
 
     const handleCopy = () => {
         navigator.clipboard.writeText(referralStats.referral_link);
-        if(window.Telegram?.WebApp?.HapticFeedback) {
+        if(isTelegramWebApp()) {
             window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
         }
-        if (window.Telegram?.WebApp?.showAlert) {
+        if (isTelegramWebApp()) {
             window.Telegram.WebApp.showAlert('Ссылка скопирована');
         }
      };

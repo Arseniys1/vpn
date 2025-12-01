@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import SectionHeader from '../components/SectionHeader';
 import * as adminApi from '../services/adminApi';
+import {isTelegramWebApp} from "@/services/authService.ts";
 
 type AdminTab = 'servers' | 'users' | 'plans' | 'tickets' | 'stats';
 
@@ -762,7 +763,7 @@ const UsersTab: React.FC = () => {
       await adminApi.updateUser(userId, updates);
       await loadUsers();
       setEditingUser(null);
-      if (window.Telegram?.WebApp?.HapticFeedback) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
     } catch (error: any) {
@@ -979,7 +980,7 @@ const PlansTab: React.FC = () => {
       });
       await loadPlans();
       setEditingPlan(null);
-      if (window.Telegram?.WebApp?.HapticFeedback) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
     } catch (error: any) {
@@ -993,7 +994,7 @@ const PlansTab: React.FC = () => {
       try {
         await adminApi.deletePlan(id);
         await loadPlans();
-        if (window.Telegram?.WebApp?.HapticFeedback) {
+        if (isTelegramWebApp()) {
           window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
         }
       } catch (error: any) {
@@ -1018,7 +1019,7 @@ const PlansTab: React.FC = () => {
       await loadPlans();
       setNewPlan({ name: '', duration_months: 1, price_stars: 100, discount: '' });
       setIsAddingPlan(false);
-      if (window.Telegram?.WebApp?.HapticFeedback) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
     } catch (error: any) {
@@ -1223,7 +1224,7 @@ const TicketsTab: React.FC = () => {
       await loadTickets();
       setReplyingTo(null);
       setReplyText('');
-      if (window.Telegram?.WebApp?.HapticFeedback) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
     } catch (error: any) {

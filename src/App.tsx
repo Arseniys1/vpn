@@ -4,7 +4,7 @@ import Layout from './components/Layout';
 import Modal from './components/Modal';
 import { Plan, UserSubscription, ServerLocation, OSType } from './types';
 import * as api from './services/api';
-import { initializeTelegramWebApp, isAuthenticated, getAuthMethod } from './services/authService';
+import {initializeTelegramWebApp, isAuthenticated, getAuthMethod, isTelegramWebApp} from './services/authService';
 
 // Pages
 import Main from './pages/Main';
@@ -126,7 +126,7 @@ const App: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to load user data:', error);
-      if (window.Telegram?.WebApp?.showAlert) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.showAlert('Ошибка загрузки данных. Попробуйте позже.');
       }
     } finally {
@@ -152,11 +152,11 @@ const App: React.FC = () => {
         planName: result.plan.name,
       });
       
-      if (window.Telegram?.WebApp?.HapticFeedback) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
       
-      if (window.Telegram?.WebApp?.showAlert) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.showAlert('Подписка успешно активирована!');
       }
       
@@ -165,7 +165,7 @@ const App: React.FC = () => {
       
     } catch (error: any) {
       console.error('Purchase failed:', error);
-      if (window.Telegram?.WebApp?.showAlert) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.showAlert(error.message || 'Ошибка при покупке подписки');
       }
       setPurchasePlan(null);
@@ -177,16 +177,16 @@ const App: React.FC = () => {
       const result = await api.topUp(500);
       setBalance(result.new_balance);
       
-      if (window.Telegram?.WebApp?.HapticFeedback) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
       
-      if (window.Telegram?.WebApp?.showAlert) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.showAlert(`Баланс пополнен на 500 ★. Новый баланс: ${result.new_balance} ★`);
       }
     } catch (error: any) {
       console.error('Top up failed:', error);
-      if (window.Telegram?.WebApp?.showAlert) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.showAlert(error.message || 'Ошибка пополнения баланса');
       }
     }
@@ -218,18 +218,18 @@ ${reportText}`,
       const ticketsData = await api.getMyTickets();
       setTickets(ticketsData.tickets || []);
 
-      if (window.Telegram?.WebApp?.HapticFeedback) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
 
-      if (window.Telegram?.WebApp?.showAlert) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.showAlert('Отчет успешно отправлен!');
       }
 
       setIsReportModalOpen(false);
     } catch (error: any) {
       console.error('Failed to send report:', error);
-      if (window.Telegram?.WebApp?.showAlert) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.showAlert(error.message || 'Ошибка отправки отчета');
       }
     }
@@ -244,16 +244,16 @@ ${reportText}`,
       const ticketsData = await api.getMyTickets();
       setTickets(ticketsData.tickets || []);
       
-      if (window.Telegram?.WebApp?.HapticFeedback) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
       
-      if (window.Telegram?.WebApp?.showAlert) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.showAlert('Тикет успешно создан!');
       }
     } catch (error: any) {
       console.error('Failed to create ticket:', error);
-      if (window.Telegram?.WebApp?.showAlert) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.showAlert(error.message || 'Ошибка создания тикета');
       }
     }
@@ -263,12 +263,12 @@ ${reportText}`,
     try {
       await api.addTicketMessage(ticketId, message);
       
-      if (window.Telegram?.WebApp?.HapticFeedback) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
     } catch (error: any) {
       console.error('Failed to add message:', error);
-      if (window.Telegram?.WebApp?.showAlert) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.showAlert(error.message || 'Ошибка отправки сообщения');
       }
     }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import SectionHeader from '../components/SectionHeader';
 import { ServerLocation, UserSubscription, ServerStatus } from '../types';
 import * as api from '../services/api';
+import {isTelegramWebApp} from "@/services/authService.ts";
 
 interface TunnelsProps {
   subscription: UserSubscription;
@@ -52,7 +53,7 @@ const Tunnels: React.FC<TunnelsProps> = ({ subscription, onReport }) => {
   const handleCreateConnection = async (server: ServerLocation) => {
     if (!subscription.active) {
       navigate('/shop');
-      if (window.Telegram?.WebApp?.HapticFeedback) {
+      if (isTelegramWebApp()) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
       }
       return;
@@ -71,12 +72,12 @@ const Tunnels: React.FC<TunnelsProps> = ({ subscription, onReport }) => {
         const connectionsData = await api.getMyConnections();
         setConnections(connectionsData.connections || []);
         
-        if (window.Telegram?.WebApp?.HapticFeedback) {
+        if (isTelegramWebApp()) {
           window.Telegram.WebApp.HapticFeedback.selectionChanged();
         }
       } catch (error: any) {
         console.error('Failed to create connection:', error);
-        if (window.Telegram?.WebApp?.showAlert) {
+        if (isTelegramWebApp()) {
           window.Telegram.WebApp.showAlert(error.message || 'Ошибка создания подключения');
         }
       }
@@ -85,7 +86,7 @@ const Tunnels: React.FC<TunnelsProps> = ({ subscription, onReport }) => {
 
   const copyToClipboard = (text: string) => {
      navigator.clipboard.writeText(text);
-     if (window.Telegram?.WebApp?.HapticFeedback) {
+     if (isTelegramWebApp()) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
      }
   };

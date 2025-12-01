@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import TgCard from '../components/TgCard';
 import { OS_INSTRUCTIONS } from '../constants';
 import { OSType } from '../types';
+import {isTelegramWebApp} from "@/services/authService.ts";
 
 const Instructions: React.FC = () => {
   const [osTab, setOsTab] = useState<OSType>(OSType.IOS);
@@ -38,7 +39,7 @@ const Instructions: React.FC = () => {
             rel="noopener noreferrer"
             className="flex items-center mb-6 bg-tg-bg p-3 rounded-xl border border-tg-separator hover:border-tg-blue transition-colors group cursor-pointer active:scale-[0.98]"
             onClick={() => {
-                if (window.Telegram?.WebApp?.HapticFeedback) {
+                if (isTelegramWebApp()) {
                     window.Telegram.WebApp.HapticFeedback.selectionChanged();
                 }
             }}
