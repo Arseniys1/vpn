@@ -132,22 +132,6 @@ export const initializeTelegramWebApp = (): void => {
     webApp.setHeaderColor('#0e1621');
     webApp.setBackgroundColor('#0e1621');
     
-    // Set up the main button if available
-    if (webApp.MainButton) {
-      webApp.MainButton.setParams({
-        text: 'Open App',
-        color: '#2481cc',
-        text_color: '#ffffff'
-      });
-      
-      webApp.MainButton.onClick(() => {
-        // Just expand the app if it's not already expanded
-        webApp.expand();
-      });
-      
-      webApp.MainButton.show();
-    }
-    
     // Hide back button by default
     if (webApp.BackButton) {
       webApp.BackButton.hide();
