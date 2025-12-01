@@ -34,7 +34,7 @@ func NewHandlers(
 		UserHandler:         NewUserHandler(userService, db),
 		SubscriptionHandler: NewSubscriptionHandler(subscriptionService, planService, userService),
 		PlanService:         planService,
-		ServerHandler:       NewServerHandler(db),
+		ServerHandler:       NewServerHandler(db, userService),
 		ConnectionHandler:   NewConnectionHandler(connectionService, userService),
 		AdminHandler:        NewAdminHandler(db),
 		SupportHandler:      NewSupportHandler(db, userService),

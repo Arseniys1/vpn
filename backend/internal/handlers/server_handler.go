@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"github.com/google/uuid"
 	"net/http"
+	"xray-vpn-connect/internal/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
@@ -11,18 +13,43 @@ import (
 )
 
 type ServerHandler struct {
-	db *database.DB
+	db          *database.DB
+	userService *services.UserService
 }
 
-func NewServerHandler(db *database.DB) *ServerHandler {
-	return &ServerHandler{db: db}
+func NewServerHandler(db *database.DB, userService *services.UserService) *ServerHandler {
+	return &ServerHandler{
+		db:          db,
+		userService: userService,
+	}
 }
 
 func (h *ServerHandler) GetServers(c *gin.Context) {
-	// Get user ID from context (set by auth middleware)
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+	authMethod, _ := c.Get("auth_method")
+
+	var user *models.User
+	var err error
+
+	switch authMethod {
+	case "telegram":
+		telegramUserID, _ := c.Get("telegram_user_id")
+		user, err = h.userService.GetUserByTelegramID(telegramUserID.(int64))
+	case "browser":
+		// For browser access, get user by ID
+		userID, _ := c.Get("user_id")
+		userIdUuid, ok := userID.(uuid.UUID)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Parse user id failed"})
+			return
+		}
+
+		user, err = h.userService.GetUserByID(userIdUuid)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+			return
+		}
+	default:
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
 		return
 	}
 
@@ -33,7 +60,7 @@ func (h *ServerHandler) GetServers(c *gin.Context) {
 	// 2. User-specific and assigned to this user
 	if err := h.db.DB.
 		Where("is_active = ? AND (is_user_specific = ? OR id IN (SELECT server_id FROM server_users WHERE user_id = ?))",
-			true, false, userID).
+			true, false, user.ID).
 		Find(&servers).Error; err != nil {
 		log.Error().Err(err).Msg("Failed to get servers")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get servers"})
