@@ -7,17 +7,19 @@ export default {
   theme: {
     extend: {
       colors: {
+        // These colors will be available for both themes
         tg: {
-          bg: '#0e1621',
-          secondary: '#17212b',
-          hover: '#202b36',
-          separator: '#0b1015',
-          text: '#f5f5f5',
-          hint: '#7d8b99',
-          blue: '#5288c1',
-          red: '#ef5b5b',
-          green: '#46d160',
-          buttonText: '#ffffff'
+          // We'll define these dynamically based on the theme
+          bg: 'var(--tg-bg)',
+          secondary: 'var(--tg-secondary)',
+          hover: 'var(--tg-hover)',
+          separator: 'var(--tg-separator)',
+          text: 'var(--tg-text)',
+          hint: 'var(--tg-hint)',
+          blue: 'var(--tg-blue)',
+          red: 'var(--tg-red)',
+          green: 'var(--tg-green)',
+          buttonText: 'var(--tg-button-text)'
         }
       },
       animation: {
@@ -37,5 +39,5 @@ export default {
     },
   },
   plugins: [],
+  darkMode: 'class', // Enable dark mode with class strategy
 }
-

@@ -5,6 +5,7 @@ import Modal from './components/Modal';
 import { Plan, UserSubscription, ServerLocation, OSType } from './types';
 import * as api from './services/api';
 import {initializeTelegramWebApp, isAuthenticated, getAuthMethod, isTelegramWebApp} from './services/authService';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // Pages
 import Main from './pages/Main';
@@ -200,247 +201,239 @@ const App: React.FC = () => {
     setIsReportModalOpen(true);
   };
 
-  const handleSendReport = async () => {
-    if (!reportText.trim() || !selectedServerForReport) return;
-    
-    try {
-      await api.createTicket({
-        subject: `Проблема с сервером ${selectedServerForReport.country}`,
-        message: `ОС: ${reportOS}
-Провайдер: ${reportProvider}
-Регион: ${reportRegion}
+  const closeReportModal = () => {
+    setIsReportModalOpen(false);
+    setSelectedServerForReport(null);
+  };
 
-${reportText}`,
-        category: 'connection'
+  const handleSendReport = async () => {
+    if (!selectedServerForReport || !reportText.trim()) return;
+
+    try {
+      await api.createServerReport({
+        server_id: selectedServerForReport.id,
+        os: reportOS,
+        provider: reportProvider,
+        region: reportRegion,
+        description: reportText
       });
-      
-      // Reload tickets
-      const ticketsData = await api.getMyTickets();
-      setTickets(ticketsData.tickets || []);
 
       if (isTelegramWebApp()) {
         window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
 
       if (isTelegramWebApp()) {
-        window.Telegram.WebApp.showAlert('Отчет успешно отправлен!');
+        window.Telegram.WebApp.showAlert('Сообщение отправлено. Спасибо за обратную связь!');
       }
 
-      setIsReportModalOpen(false);
+      closeReportModal();
     } catch (error: any) {
       console.error('Failed to send report:', error);
-      if (isTelegramWebApp()) {
-        window.Telegram.WebApp.showAlert(error.message || 'Ошибка отправки отчета');
-      }
-    }
-  };
-
-  // Support ticket functions
-  const handleCreateTicket = async (subject: string, message: string, category: string) => {
-    try {
-      await api.createTicket({ subject, message, category });
-      
-      // Reload tickets
-      const ticketsData = await api.getMyTickets();
-      setTickets(ticketsData.tickets || []);
-      
-      if (isTelegramWebApp()) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-      }
-      
-      if (isTelegramWebApp()) {
-        window.Telegram.WebApp.showAlert('Тикет успешно создан!');
-      }
-    } catch (error: any) {
-      console.error('Failed to create ticket:', error);
-      if (isTelegramWebApp()) {
-        window.Telegram.WebApp.showAlert(error.message || 'Ошибка создания тикета');
-      }
-    }
-  };
-
-  const handleAddMessage = async (ticketId: string, message: string) => {
-    try {
-      await api.addTicketMessage(ticketId, message);
-      
-      if (isTelegramWebApp()) {
-        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-      }
-    } catch (error: any) {
-      console.error('Failed to add message:', error);
       if (isTelegramWebApp()) {
         window.Telegram.WebApp.showAlert(error.message || 'Ошибка отправки сообщения');
       }
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-          <p className="text-gray-400">Загрузка...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Redirect to auth page if not authenticated
+  // If not authenticated, show auth routes only
   if (!isAuthenticatedState) {
     return (
-        <HashRouter>
-          <Routes>
-            <Route path="/auth/*" element={<Auth />} />
-            <Route path="*" element={<Navigate to="/auth/browser" replace />} />
-          </Routes>
-        </HashRouter>
+      <HashRouter>
+        <Routes>
+          <Route path="/auth/*" element={<Auth />} />
+          <Route path="*" element={<Navigate to="/auth/browser" replace />} />
+        </Routes>
+      </HashRouter>
     );
   }
 
   return (
-    <HashRouter>
-      <Routes>
-        {/* Authentication route */}
-        <Route path="/auth/browser" element={<Auth />} />
-        
-        {/* Protected routes - these will handle their own authentication checks */}
-        <Route element={<Layout />}>
-          <Route index element={
-            <Main 
-              subscription={userSubscription} 
-              adminMessage={adminMessage} 
-              isAdmin={isAdmin}
-              userName={userName}
-            />
-          } />
-          <Route path="/tunnels" element={
-            <Tunnels 
-              subscription={userSubscription} 
-              onReport={openReportModal} 
-            />
-          } />
-          <Route path="/shop" element={
-            <Shop 
-              balance={balance} 
-              subscription={userSubscription} 
-              onBuy={handleBuyPlanClick} 
-              onTopUp={handleTopUp} 
-            />
-          } />
-          <Route path="/referrals" element={<Referrals />} />
-          <Route path="/support" element={
-            <Support 
-              tickets={tickets} 
-              onCreateTicket={handleCreateTicket} 
-              onAddMessage={handleAddMessage} 
-            />
-          } />
-          <Route path="/instructions" element={<Instructions />} />
-          {isAdmin && <Route path="/admin/*" element={<Admin />} />}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
+    <ThemeProvider>
+      <HashRouter>
+        <div className="min-h-screen bg-tg-bg text-tg-text">
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={
+                <Main 
+                  subscription={userSubscription} 
+                  adminMessage={adminMessage}
+                  isAdmin={isAdmin}
+                  userName={userName}
+                />
+              } />
+              <Route path="/tunnels" element={
+                <Tunnels 
+                  subscription={userSubscription} 
+                  onReport={openReportModal}
+                />
+              } />
+              <Route path="/shop" element={
+                <Shop 
+                  balance={balance}
+                  subscription={userSubscription}
+                  onBuyPlan={handleBuyPlanClick}
+                  onTopUp={handleTopUp}
+                />
+              } />
+              <Route path="/referrals" element={
+                <Referrals 
+                  balance={balance}
+                  referralCode={""} // Will be passed from user data
+                />
+              } />
+              <Route path="/support" element={
+                <Support 
+                  tickets={tickets}
+                  onCreateTicket={(subject, message, category) => {
+                    // Implementation would go here
+                  }}
+                  onAddMessage={(ticketId, message) => {
+                    // Implementation would go here
+                  }}
+                />
+              } />
+              <Route path="/instructions" element={<Instructions />} />
+              {isAdmin && <Route path="/admin" element={<Admin />} />}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Route>
+          </Routes>
+        </div>
 
-      {/* Purchase Confirmation Modal */}
-      {purchasePlan && (
-        <Modal isOpen={true} onClose={() => setPurchasePlan(null)} title="Подтверждение покупки">
-          <div className="text-center">
-            <h3 className="text-xl font-semibold text-white mb-2">{purchasePlan.name}</h3>
-            <p className="text-gray-300 mb-4">{purchasePlan.priceStars} ★</p>
-            {purchasePlan.discount && (
-              <span className="inline-block bg-green-900 text-green-300 px-2 py-1 rounded text-sm mb-4">
-                {purchasePlan.discount}
-              </span>
-            )}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setPurchasePlan(null)}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition"
-              >
-                Отмена
-              </button>
+        {/* Purchase Confirmation Modal */}
+        <Modal 
+          isOpen={!!purchasePlan} 
+          onClose={() => setPurchasePlan(null)} 
+          title="Подтверждение покупки"
+        >
+          {purchasePlan && (
+            <div className="space-y-4">
+              <div className="bg-tg-secondary p-4 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium">{purchasePlan.name}</span>
+                  <span className="font-bold text-tg-blue">{purchasePlan.price_stars} ★</span>
+                </div>
+                <div className="text-sm text-tg-hint">
+                  Длительность: {purchasePlan.duration_months} месяцев
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center pt-2 border-t border-tg-separator">
+                <span className="font-medium">Ваш баланс:</span>
+                <span className="font-bold">{balance} ★</span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="font-medium">К оплате:</span>
+                <span className="font-bold text-tg-blue">{purchasePlan.price_stars} ★</span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Будет после покупки:</span>
+                <span className="font-bold">{balance - purchasePlan.price_stars} ★</span>
+              </div>
+              
               <button
                 onClick={handleConfirmPurchase}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition"
+                disabled={balance < purchasePlan.price_stars}
+                className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center transition-all ${
+                  balance < purchasePlan.price_stars 
+                    ? 'bg-tg-separator text-tg-hint' 
+                    : 'bg-tg-blue text-white active:scale-95 shadow-lg shadow-tg-blue/20'
+                }`}
               >
-                Подтвердить
+                Подтвердить покупку
               </button>
+              
+              {balance < purchasePlan.price_stars && (
+                <div className="text-center text-sm text-tg-red mt-2">
+                  Недостаточно средств на балансе
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </Modal>
-      )}
 
-      {/* Server Report Modal */}
-      {isReportModalOpen && selectedServerForReport && (
-        <Modal isOpen={true} onClose={() => setIsReportModalOpen(false)} title={`Сообщить о проблеме - ${selectedServerForReport.country}`}>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">ОС</label>
-              <select
-                value={reportOS}
-                onChange={(e) => setReportOS(e.target.value as OSType)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
-              >
-                <option value={OSType.IOS}>iOS</option>
-                <option value={OSType.ANDROID}>Android</option>
-                <option value={OSType.WINDOWS}>Windows</option>
-                <option value={OSType.MACOS}>macOS</option>
-                <option value={OSType.LINUX}>Linux</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Провайдер</label>
-              <input
-                type="text"
-                value={reportProvider}
-                onChange={(e) => setReportProvider(e.target.value)}
-                placeholder="Например: МТС, Билайн"
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Регион</label>
-              <input
-                type="text"
-                value={reportRegion}
-                onChange={(e) => setReportRegion(e.target.value)}
-                placeholder="Например: Москва, Санкт-Петербург"
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Описание проблемы</label>
-              <textarea
-                value={reportText}
-                onChange={(e) => setReportText(e.target.value)}
-                placeholder="Опишите проблему с подключением..."
-                rows={4}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400"
-              />
-            </div>
-            
-            <div className="flex gap-3">
-              <button
-                onClick={() => setIsReportModalOpen(false)}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition"
-              >
-                Отмена
-              </button>
+        {/* Server Report Modal */}
+        <Modal 
+          isOpen={isReportModalOpen} 
+          onClose={closeReportModal} 
+          title="Сообщить о проблеме"
+        >
+          {selectedServerForReport && (
+            <div className="space-y-4">
+              <div className="bg-tg-secondary p-3 rounded-lg">
+                <div className="text-sm text-tg-hint mb-1">Сервер</div>
+                <div className="font-medium">{selectedServerForReport.country}</div>
+              </div>
+              
+              <div>
+                <label className="block text-xs text-tg-hint uppercase font-bold mb-1.5">Операционная система</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[OSType.IOS, OSType.ANDROID, OSType.WINDOWS, OSType.MACOS, OSType.LINUX].map((os) => (
+                    <button
+                      key={os}
+                      onClick={() => setReportOS(os)}
+                      className={`py-2 text-xs font-medium rounded transition-colors ${
+                        reportOS === os 
+                          ? 'bg-tg-blue text-white' 
+                          : 'bg-tg-bg border border-tg-separator text-tg-hint hover:text-tg-text'
+                      }`}
+                    >
+                      {os}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs text-tg-hint uppercase font-bold mb-1.5">Провайдер</label>
+                <input
+                  type="text"
+                  value={reportProvider}
+                  onChange={(e) => setReportProvider(e.target.value)}
+                  placeholder="Например: МТС, Билайн"
+                  className="w-full bg-tg-bg border border-tg-separator rounded-xl p-3 text-sm text-tg-text focus:outline-none focus:border-tg-blue"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs text-tg-hint uppercase font-bold mb-1.5">Регион</label>
+                <input
+                  type="text"
+                  value={reportRegion}
+                  onChange={(e) => setReportRegion(e.target.value)}
+                  placeholder="Например: Москва, Санкт-Петербург"
+                  className="w-full bg-tg-bg border border-tg-separator rounded-xl p-3 text-sm text-tg-text focus:outline-none focus:border-tg-blue"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs text-tg-hint uppercase font-bold mb-1.5">Описание проблемы</label>
+                <textarea
+                  value={reportText}
+                  onChange={(e) => setReportText(e.target.value)}
+                  placeholder="Опишите подробно проблему..."
+                  rows={4}
+                  className="w-full bg-tg-bg border border-tg-separator rounded-xl p-3 text-sm text-tg-text focus:outline-none focus:border-tg-blue resize-none"
+                />
+              </div>
+              
               <button
                 onClick={handleSendReport}
                 disabled={!reportText.trim()}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white py-2 px-4 rounded-lg transition"
+                className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center transition-all ${
+                  !reportText.trim() 
+                    ? 'bg-tg-separator text-tg-hint' 
+                    : 'bg-tg-blue text-white active:scale-95 shadow-lg shadow-tg-blue/20'
+                }`}
               >
                 Отправить
               </button>
             </div>
-          </div>
+          )}
         </Modal>
-      )}
-    </HashRouter>
+      </HashRouter>
+    </ThemeProvider>
   );
 };
 
