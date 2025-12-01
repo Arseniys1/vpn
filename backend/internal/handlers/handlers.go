@@ -71,6 +71,20 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, cfg *config.Config, db *database.D
 	// Telegram webhook endpoint (public)
 	r.POST("/webhook/telegram", h.AuthHandler.TelegramWebhook)
 
+	// Public endpoint to get bot information
+	r.GET("/bot-info", func(c *gin.Context) {
+		botUsername := cfg.Telegram.BotUsername
+		if botUsername == "" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Bot username not configured"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"bot_username": botUsername,
+			"bot_link":     "https://t.me/" + botUsername,
+		})
+	})
+
 	// Authentication endpoints
 	auth := r.Group("/auth")
 	{
