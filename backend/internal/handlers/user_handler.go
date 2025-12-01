@@ -3,7 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"os"
+	"xray-vpn-connect/internal/config"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -18,6 +18,7 @@ import (
 type UserHandler struct {
 	userService *services.UserService
 	db          *database.DB
+	config      *config.Config
 }
 
 func NewUserHandler(userService *services.UserService, db *database.DB) *UserHandler {
@@ -25,6 +26,10 @@ func NewUserHandler(userService *services.UserService, db *database.DB) *UserHan
 		userService: userService,
 		db:          db,
 	}
+}
+
+func (h *UserHandler) SetConfig(cfg *config.Config) {
+	h.config = cfg
 }
 
 type MeResponse struct {
@@ -186,14 +191,16 @@ func (h *UserHandler) GetReferralStats(c *gin.Context) {
 	case "browser":
 		// For browser access, get user by ID
 		userID, _ := c.Get("user_id")
-		if userIDStr, ok := userID.(string); ok && userIDStr == "browser_user_123" {
-			// Mock user for demonstration
-			user = &models.User{
-				ID:           uuid.New(),
-				TelegramID:   123456789,
-				FirstName:    "Browser",
-				ReferralCode: "browser123",
-			}
+		userIdUuid, ok := userID.(uuid.UUID)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse user ID"})
+			return
+		}
+
+		user, err = h.userService.GetUserByID(userIdUuid)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+			return
 		}
 	default:
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
@@ -220,10 +227,7 @@ func (h *UserHandler) GetReferralStats(c *gin.Context) {
 	rewardEarned := activeReferrals * 50
 
 	// Generate referral link using environment variable
-	botUsername := os.Getenv("TELEGRAM_BOT_USERNAME")
-	if botUsername == "" {
-		botUsername = "YourBotUsername" // fallback
-	}
+	botUsername := h.config.Telegram.BotUsername
 	referralLink := fmt.Sprintf("https://t.me/%s?start=%s", botUsername, user.ReferralCode)
 
 	c.JSON(http.StatusOK, gin.H{
