@@ -9,6 +9,7 @@ const Auth: React.FC = () => {
   const [authState, setAuthState] = useState<string | null>(null);
   const [showCopyButton, setShowCopyButton] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [botLinkCopied, setBotLinkCopied] = useState(false);
   const navigate = useNavigate();
 
   // Poll for authentication status
@@ -58,6 +59,7 @@ const Auth: React.FC = () => {
     setError(null);
     setShowCopyButton(false);
     setCopySuccess(false);
+    setBotLinkCopied(false);
     
     try {
       // Call the browser auth endpoint to create an auth session
@@ -94,6 +96,19 @@ const Auth: React.FC = () => {
     } catch (err) {
       console.error('Failed to copy command:', err);
       setError('Не удалось скопировать команду в буфер обмена');
+    }
+  };
+
+  const handleCopyBotLink = async () => {
+    try {
+      // In a real app, this would come from config or env variables
+      const botLink = "https://t.me/vpnconnect_bot"; // Placeholder - replace with actual bot link
+      await navigator.clipboard.writeText(botLink);
+      setBotLinkCopied(true);
+      setTimeout(() => setBotLinkCopied(false), 3000);
+    } catch (err) {
+      console.error('Failed to copy bot link:', err);
+      setError('Не удалось скопировать ссылку на бота');
     }
   };
 
@@ -161,7 +176,7 @@ const Auth: React.FC = () => {
           {(showCopyButton || authState) && (
             <button
               onClick={handleCopyCommand}
-              className="w-full bg-tg-secondary border border-tg-separator hover:bg-tg-hover text-tg-text font-medium py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center"
+              className="w-full bg-tg-secondary border border-tg-separator hover:bg-tg-hover text-tg-text font-medium py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center mb-3"
             >
               {copySuccess ? (
                 <>
@@ -190,11 +205,60 @@ const Auth: React.FC = () => {
         
         <div className="bg-tg-secondary rounded-xl p-5 border border-tg-separator/50">
           <h3 className="font-bold text-tg-text mb-3 text-center">Как это работает</h3>
-          <ol className="text-sm text-tg-hint space-y-2 list-decimal list-inside pl-4">
+          <ol className="text-sm text-tg-hint space-y-3 list-decimal list-inside pl-4">
             <li>Нажмите кнопку "Авторизоваться через Telegram"</li>
             <li>Вы будете перенаправлены в Telegram для подтверждения аутентификации</li>
             <li>После подтверждения вы автоматически войдете в приложение</li>
-            <li>Если перенаправление не работает, используйте кнопку "Скопировать команду Telegram"</li>
+            <li>
+              Если страница не открылась автоматически:
+              <div className="mt-2 flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={handleCopyBotLink}
+                  className="text-xs flex items-center justify-center bg-tg-button-disabled hover:bg-tg-hover text-tg-text py-1.5 px-3 rounded transition flex-1"
+                >
+                  {botLinkCopied ? (
+                    <>
+                      <svg className="w-4 h-4 mr-1 text-tg-green" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Ссылка скопирована
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                        <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                      </svg>
+                      Скопировать ссылку на бота
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleCopyCommand}
+                  className="text-xs flex items-center justify-center bg-tg-button-disabled hover:bg-tg-hover text-tg-text py-1.5 px-3 rounded transition flex-1"
+                >
+                  {copySuccess ? (
+                    <>
+                      <svg className="w-4 h-4 mr-1 text-tg-green" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Команда скопирована
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                        <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                      </svg>
+                      Скопировать команду
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="mt-2 text-xs">
+                Откройте Telegram, перейдите по ссылке на бота и отправьте ему команду для входа.
+              </p>
+            </li>
           </ol>
         </div>
       </div>
