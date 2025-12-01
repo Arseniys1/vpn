@@ -18,10 +18,10 @@ import (
 
 // TelegramInitData represents Telegram WebApp init data
 type TelegramInitData struct {
-	QueryID    string
-	User       TelegramUser
-	AuthDate   int64
-	Hash       string
+	QueryID  string
+	User     TelegramUser
+	AuthDate int64
+	Hash     string
 }
 
 type TelegramUser struct {
@@ -57,7 +57,7 @@ func VerifyTelegramWebApp(botToken string) gin.HandlerFunc {
 
 		// Verify hash
 		if !verifyInitData(initData, botToken, parsedData.Hash) {
-			log.Warn().Str("hash", parsedData.Hash).Msg("Invalid init data hash")
+			log.Warn().Str("received_hash", parsedData.Hash).Msg("Invalid init data hash")
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "Invalid init data signature",
 			})
@@ -84,7 +84,14 @@ func VerifyTelegramWebApp(botToken string) gin.HandlerFunc {
 }
 
 func parseInitData(initData string) (*TelegramInitData, error) {
-	parts := strings.Split(initData, "&")
+	// First try to URL decode the initData
+	decodedData, err := url.QueryUnescape(initData)
+	if err != nil {
+		// If URL decoding fails, use the original data
+		decodedData = initData
+	}
+
+	parts := strings.Split(decodedData, "&")
 	data := &TelegramInitData{}
 
 	for _, part := range parts {
@@ -94,33 +101,23 @@ func parseInitData(initData string) (*TelegramInitData, error) {
 		}
 
 		key := kv[0]
-		value := kv[1]
+		value, err := url.QueryUnescape(kv[1])
+		if err != nil {
+			value = kv[1]
+		}
 
 		switch key {
 		case "query_id":
 			data.QueryID = value
 		case "user":
-			// User is JSON encoded
-			userJSON, err := hex.DecodeString(value)
-			if err != nil {
-				// Try without hex decoding
-				userJSON = []byte(value)
-			}
-			if err := json.Unmarshal(userJSON, &data.User); err != nil {
-				// Try URL decoding first
-				decoded, err := url.QueryUnescape(value)
-				if err == nil {
-					userJSON = []byte(decoded)
-					err = json.Unmarshal(userJSON, &data.User)
-				}
-				if err != nil {
-					return nil, err
-				}
+			// User is JSON encoded, try to unmarshal directly
+			if err := json.Unmarshal([]byte(value), &data.User); err != nil {
+				return nil, fmt.Errorf("failed to parse user data: %w", err)
 			}
 		case "auth_date":
 			_, err := fmt.Sscanf(value, "%d", &data.AuthDate)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to parse auth_date: %w", err)
 			}
 		case "hash":
 			data.Hash = value
@@ -131,29 +128,52 @@ func parseInitData(initData string) (*TelegramInitData, error) {
 }
 
 func verifyInitData(initData, botToken, receivedHash string) bool {
-	// Remove hash from init data for verification
-	parts := strings.Split(initData, "&")
-	var dataParts []string
-	for _, part := range parts {
-		if !strings.HasPrefix(part, "hash=") {
-			dataParts = append(dataParts, part)
-		}
+	// First try to URL decode the initData
+	decodedData, err := url.QueryUnescape(initData)
+	if err != nil {
+		decodedData = initData
 	}
 
-	// Sort key-value pairs
-	sort.Strings(dataParts)
-	dataCheckString := strings.Join(dataParts, "\n")
+	// Parse the init data into key-value pairs
+	parts := strings.Split(decodedData, "&")
+	params := make(map[string]string)
 
-	// Create secret key
+	for _, part := range parts {
+		kv := strings.SplitN(part, "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+
+		key := kv[0]
+		value, err := url.QueryUnescape(kv[1])
+		if err != nil {
+			value = kv[1]
+		}
+		params[key] = value
+	}
+
+	// Remove hash from parameters for verification
+	delete(params, "hash")
+
+	// Create sorted array of key=value pairs
+	var dataCheckArray []string
+	for key, value := range params {
+		dataCheckArray = append(dataCheckArray, key+"="+value)
+	}
+	sort.Strings(dataCheckArray)
+
+	// Join with newline
+	dataCheckString := strings.Join(dataCheckArray, "\n")
+
+	// Create secret key: HMAC-SHA256 of "WebAppData" with botToken
 	secretKey := hmac.New(sha256.New, []byte("WebAppData"))
 	secretKey.Write([]byte(botToken))
 	secret := secretKey.Sum(nil)
 
-	// Calculate hash
+	// Calculate hash: HMAC-SHA256 of dataCheckString with secret
 	h := hmac.New(sha256.New, secret)
 	h.Write([]byte(dataCheckString))
 	calculatedHash := hex.EncodeToString(h.Sum(nil))
 
 	return calculatedHash == receivedHash
 }
-
