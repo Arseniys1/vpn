@@ -109,19 +109,6 @@ func (h *AuthHandler) CheckAuthStatus(c *gin.Context) {
 		return
 	}
 
-	// First check if the auth session still exists (not expired)
-	var authSession models.AuthSession
-	if err := h.db.DB.Where("state = ? AND expires_at > ?", state, time.Now()).First(&authSession).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// Auth session expired or doesn't exist
-			c.JSON(http.StatusOK, gin.H{"status": "expired"})
-			return
-		}
-		log.Error().Err(err).Msg("Database error")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-		return
-	}
-
 	// Auth session exists and is not expired, check if there's a browser session associated with it
 	var browserSession models.BrowserSession
 	if err := h.db.DB.Where("auth_state = ?", state).First(&browserSession).Error; err != nil {
