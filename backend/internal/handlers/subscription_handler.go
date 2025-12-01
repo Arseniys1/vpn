@@ -50,14 +50,17 @@ func (h *SubscriptionHandler) PurchasePlan(c *gin.Context) {
 	case "browser":
 		// For browser access, get user by ID
 		userID, _ := c.Get("user_id")
-		if userIDStr, ok := userID.(string); ok && userIDStr == "browser_user_123" {
-			// Mock user for demonstration
-			user = &models.User{
-				ID:         uuid.New(),
-				TelegramID: 123456789,
-				FirstName:  "Browser",
-				Balance:    1000,
-			}
+
+		userIdUuid, ok := userID.(uuid.UUID)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed parse user id"})
+			return
+		}
+
+		user, err = h.userService.GetUserByID(userIdUuid)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+			return
 		}
 	default:
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
