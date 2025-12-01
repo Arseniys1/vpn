@@ -40,41 +40,49 @@ const App: React.FC = () => {
   // Auth State
   const [isAuthenticatedState, setIsAuthenticatedState] = useState(false);
   const [authMethod, setAuthMethod] = useState<'telegram' | 'browser' | 'none'>('none');
-  
-  // Initialize Telegram WebApp and check authentication
+
+  let initialized = false;
+
   useEffect(() => {
-    // Initialize Telegram WebApp if in Telegram
-    initializeTelegramWebApp();
-    
-    // Check authentication status
-    const authStatus = isAuthenticated();
-    const method = getAuthMethod();
-    
-    setIsAuthenticatedState(authStatus);
-    setAuthMethod(method);
-    
-    if (authStatus) {
-      loadUserData();
-    } else {
-      setLoading(false);
-    }
-    
-    // Set up event listeners for Telegram WebApp buttons
-    if (window.Telegram?.WebApp) {
-      const webApp = window.Telegram.WebApp;
-      
-      // Handle back button if available
-      if (webApp.BackButton) {
-        webApp.BackButton.onClick(() => {
-          // Go back in history or to main page
-          if (window.history.length > 1) {
-            window.history.back();
-          } else {
-            window.location.hash = '#/';
-          }
-        });
+    const initializeApp = () => {
+      if (initialized) return;
+      initialized = true;
+
+      // Initialize Telegram WebApp if in Telegram
+      initializeTelegramWebApp();
+
+      // Check authentication status
+      const authStatus = isAuthenticated();
+      const method = getAuthMethod();
+
+      setIsAuthenticatedState(authStatus);
+      setAuthMethod(method);
+
+      if (authStatus) {
+        loadUserData();
+      } else {
+        setLoading(false);
       }
-    }
+
+      // Set up event listeners for Telegram WebApp buttons
+      if (window.Telegram?.WebApp) {
+        const webApp = window.Telegram.WebApp;
+
+        // Handle back button if available
+        if (webApp.BackButton) {
+          webApp.BackButton.onClick(() => {
+            // Go back in history or to main page
+            if (window.history.length > 1) {
+              window.history.back();
+            } else {
+              window.location.hash = '#/';
+            }
+          });
+        }
+      }
+    };
+
+    initializeApp();
   }, []);
 
   // Load user data from backend
