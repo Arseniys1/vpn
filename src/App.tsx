@@ -285,6 +285,18 @@ ${reportText}`,
     );
   }
 
+  // Redirect to auth page if not authenticated
+  if (!isAuthenticatedState) {
+    return (
+        <HashRouter>
+          <Routes>
+            <Route path="/auth/*" element={<Auth />} />
+            <Route path="*" element={<Navigate to="/auth/browser" replace />} />
+          </Routes>
+        </HashRouter>
+    );
+  }
+
   return (
     <HashRouter>
       <Routes>

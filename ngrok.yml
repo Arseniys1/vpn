@@ -1,5 +1,5 @@
 version: "2"
-authtoken:
+authtoken: 2lWsPzhTAjuznqy2gAJEqQIsZPQ_6irw2D6gdq4SP841FGCie
 tunnels:
   web:
     proto: http

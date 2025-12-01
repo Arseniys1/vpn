@@ -23,7 +23,7 @@ const Auth: React.FC = () => {
             localStorage.setItem('auth_token', data.token);
             document.cookie = `auth_token=${data.token}; path=/`;
             setIsPolling(false);
-            navigate('/');
+            window.location.href = '/';
           } else if (data.status === 'expired') {
             // Authentication expired
             setIsPolling(false);
