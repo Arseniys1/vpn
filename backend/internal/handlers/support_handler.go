@@ -99,13 +99,16 @@ func (h *SupportHandler) GetMyTickets(c *gin.Context) {
 	case "browser":
 		// For browser access, get user by ID
 		userID, _ := c.Get("user_id")
-		if userIDStr, ok := userID.(string); ok && userIDStr == "browser_user_123" {
-			// Mock user for demonstration
-			user = &models.User{
-				ID:         uuid.New(),
-				TelegramID: 123456789,
-				FirstName:  "Browser",
-			}
+		userIdUuid, ok := userID.(uuid.UUID)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Parse user id failed"})
+			return
+		}
+
+		user, err = h.userService.GetUserByID(userIdUuid)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+			return
 		}
 	default:
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
