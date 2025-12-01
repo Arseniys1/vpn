@@ -73,7 +73,7 @@ const StatsTab: React.FC = () => {
       setStats(data);
     } catch (error) {
       console.error('Failed to load stats:', error);
-      alert('Ошибка загрузки статистики');
+      // alert('Ошибка загрузки статистики');
     } finally {
       setLoading(false);
     }
@@ -183,7 +183,7 @@ const ServerTab: React.FC = () => {
       setServers(data);
     } catch (error) {
       console.error('Failed to load servers:', error);
-      alert('Ошибка загрузки серверов');
+      // alert('Ошибка загрузки серверов');
     } finally {
       setLoading(false);
     }
@@ -195,7 +195,7 @@ const ServerTab: React.FC = () => {
       setXrayPanels(data);
     } catch (error) {
       console.error('Failed to load Xray panels:', error);
-      alert('Ошибка загрузки Xray панелей');
+      // alert('Ошибка загрузки Xray панелей');
     }
   };
 
@@ -205,13 +205,13 @@ const ServerTab: React.FC = () => {
       setUsers(data.users);
     } catch (error) {
       console.error('Failed to load all users:', error);
-      alert('Ошибка загрузки пользователей');
+      // alert('Ошибка загрузки пользователей');
     }
   };
 
   const handleAddServer = async () => {
     if (!newServer.name || !newServer.country || !newServer.host || !newServer.xray_panel_id) {
-      alert('Please fill in all required fields');
+      // alert('Please fill in all required fields');
       return;
     }
 
@@ -235,7 +235,7 @@ const ServerTab: React.FC = () => {
       });
     } catch (error) {
       console.error('Failed to add server:', error);
-      alert('Failed to add server');
+      // alert('Failed to add server');
     }
   };
 
@@ -246,7 +246,7 @@ const ServerTab: React.FC = () => {
         setServers(servers.filter(server => server.id !== id));
       } catch (error) {
         console.error('Failed to delete server:', error);
-        alert('Ошибка удаления сервера');
+        // alert('Ошибка удаления сервера');
       }
     }
   };
@@ -258,7 +258,7 @@ const ServerTab: React.FC = () => {
       setEditingServer(null);
     } catch (error) {
       console.error('Failed to update server:', error);
-      alert('Failed to update server');
+      // alert('Failed to update server');
     }
   };
 
@@ -752,7 +752,7 @@ const UsersTab: React.FC = () => {
       setTotal(data.total);
     } catch (error) {
       console.error('Failed to load users:', error);
-      alert('Ошибка загрузки пользователей');
+      // alert('Ошибка загрузки пользователей');
     } finally {
       setLoading(false);
     }
@@ -768,7 +768,7 @@ const UsersTab: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Failed to update user:', error);
-      alert('Ошибка обновления пользователя: ' + (error.message || 'Неизвестная ошибка'));
+      // alert('Ошибка обновления пользователя: ' + (error.message || 'Неизвестная ошибка'));
     }
   };
 
@@ -964,7 +964,7 @@ const PlansTab: React.FC = () => {
       setPlans(data);
     } catch (error) {
       console.error('Failed to load plans:', error);
-      alert('Ошибка загрузки тарифов');
+      // alert('Ошибка загрузки тарифов');
     } finally {
       setLoading(false);
     }
@@ -985,7 +985,7 @@ const PlansTab: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Failed to update plan:', error);
-      alert('Ошибка обновления тарифа: ' + (error.message || 'Неизвестная ошибка'));
+      // alert('Ошибка обновления тарифа: ' + (error.message || 'Неизвестная ошибка'));
     }
   };
 
@@ -999,14 +999,14 @@ const PlansTab: React.FC = () => {
         }
       } catch (error: any) {
         console.error('Failed to delete plan:', error);
-        alert('Ошибка удаления тарифа: ' + (error.message || 'Неизвестная ошибка'));
+        // alert('Ошибка удаления тарифа: ' + (error.message || 'Неизвестная ошибка'));
       }
     }
   };
 
   const handleAddPlan = async () => {
     if (!newPlan.name || !newPlan.duration_months || !newPlan.price_stars) {
-      alert('Заполните все обязательные поля');
+      // alert('Заполните все обязательные поля');
       return;
     }
     try {
@@ -1024,7 +1024,7 @@ const PlansTab: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Failed to create plan:', error);
-      alert('Ошибка создания тарифа: ' + (error.message || 'Неизвестная ошибка'));
+      // alert('Ошибка создания тарифа: ' + (error.message || 'Неизвестная ошибка'));
     }
   };
 
@@ -1205,7 +1205,7 @@ const TicketsTab: React.FC = () => {
       setTickets(data);
     } catch (error) {
       console.error('Failed to load tickets:', error);
-      alert('Ошибка загрузки тикетов');
+      // alert('Ошибка загрузки тикетов');
     } finally {
       setLoading(false);
     }
@@ -1213,7 +1213,7 @@ const TicketsTab: React.FC = () => {
 
   const handleReply = async (ticketId: string) => {
     if (!replyText.trim()) {
-      alert('Введите ответ');
+      // alert('Введите ответ');
       return;
     }
     try {
@@ -1229,7 +1229,7 @@ const TicketsTab: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Failed to reply to ticket:', error);
-      alert('Ошибка ответа на тикет: ' + (error.message || 'Неизвестная ошибка'));
+      // alert('Ошибка ответа на тикет: ' + (error.message || 'Неизвестная ошибка'));
     }
   };
 
