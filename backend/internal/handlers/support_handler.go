@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"gorm.io/gorm"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -164,8 +165,8 @@ func (h *SupportHandler) GetTicket(c *gin.Context) {
 			return
 		}
 
-		user, err = h.userService.GetUserByID(userIdUuid)
-		if err != nil {
+		user, userErr = h.userService.GetUserByID(userIdUuid)
+		if userErr != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 			return
 		}
@@ -180,9 +181,9 @@ func (h *SupportHandler) GetTicket(c *gin.Context) {
 	}
 
 	var ticket models.SupportTicket
-	if err := h.db.DB.Preload("Messages").
-		Where("id = ? AND user_id = ?", ticketID, user.ID).
-		First(&ticket).Error; err != nil {
+	if err := h.db.DB.Preload("User").Preload("Messages", func(db *gorm.DB) *gorm.DB {
+		return db.Order("created_at ASC").Preload("User")
+	}).Where("id = ? AND user_id = ?", ticketID, user.ID).First(&ticket).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Ticket not found"})
 		return
 	}

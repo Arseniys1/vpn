@@ -157,7 +157,8 @@ type TicketMessage struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// Relations
-	Ticket SupportTicket `gorm:"foreignKey:TicketID" json:"ticket,omitempty"`
+	Ticket SupportTicket `gorm:"foreignKey:TicketID" json:"-"`            // Exclude from JSON serialization
+	User   User          `gorm:"foreignKey:UserID" json:"user,omitempty"` // Include user data for messages
 }
 
 // ServerReport represents a problem report for a server

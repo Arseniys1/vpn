@@ -4,9 +4,20 @@ import SectionHeader from '../components/SectionHeader';
 import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 import { SupportTicket } from '../types';
+import * as api from '../services/api';
+
+// Define the message structure that matches the API response
+interface TicketMessage {
+    id: string;
+    ticket_id: string;
+    user_id: string;
+    is_admin: boolean;
+    message: string;
+    created_at: string;
+}
 
 export interface ExtendedTicket extends SupportTicket {
-    messages?: { sender: 'user' | 'admin', text: string, date: string }[];
+    messages?: TicketMessage[];
 }
 
 interface SupportProps {
@@ -20,6 +31,7 @@ const Support: React.FC<SupportProps> = ({ tickets, onCreateTicket, onAddMessage
     const [selectedTicket, setSelectedTicket] = useState<ExtendedTicket | null>(null);
     const [chatInput, setChatInput] = useState("");
     const [localTickets, setLocalTickets] = useState<ExtendedTicket[]>(tickets);
+    const [loadingTicket, setLoadingTicket] = useState(false);
 
     useEffect(() => {
         setLocalTickets(tickets.map(t => ({...t, messages: t.messages || []})));
@@ -40,6 +52,30 @@ const Support: React.FC<SupportProps> = ({ tickets, onCreateTicket, onAddMessage
         scrollToBottom();
     }, [selectedTicket?.messages, selectedTicket?.reply]);
 
+    // Fetch ticket details with messages when a ticket is selected
+    useEffect(() => {
+        const fetchTicketDetails = async () => {
+            if (selectedTicket) {
+                setLoadingTicket(true);
+                try {
+                    const ticketData = await api.getTicket(selectedTicket.id);
+                    // Merge the ticket data with messages into the selected ticket
+                    setSelectedTicket(prev => ({
+                        ...prev,
+                        ...ticketData,
+                        messages: ticketData.messages || []
+                    }));
+                } catch (error) {
+                    console.error('Failed to fetch ticket details:', error);
+                } finally {
+                    setLoadingTicket(false);
+                }
+            }
+        };
+
+        fetchTicketDetails();
+    }, [selectedTicket?.id]);
+
     const handleSubmit = () => {
         if (!newSubject.trim() || !newMessage.trim()) return;
         onCreateTicket(newSubject, newMessage, newCategory);
@@ -56,7 +92,14 @@ const Support: React.FC<SupportProps> = ({ tickets, onCreateTicket, onAddMessage
         onAddMessage(selectedTicket.id, chatInput);
         
         // Optimistically update UI
-        const newMessageObj = { sender: 'user' as const, text: chatInput, date: new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'}) };
+        const newMessageObj = { 
+            id: Date.now().toString(), // temporary ID
+            ticket_id: selectedTicket.id,
+            user_id: '', // will be filled by backend
+            is_admin: false,
+            message: chatInput, 
+            created_at: new Date().toISOString()
+        };
         
         const updatedTickets = localTickets.map(t => {
             if (t.id === selectedTicket.id) {
@@ -72,6 +115,19 @@ const Support: React.FC<SupportProps> = ({ tickets, onCreateTicket, onAddMessage
         setSelectedTicket(prev => prev ? ({ ...prev, messages: [...(prev.messages || []), newMessageObj] }) : null);
         
         setChatInput("");
+    };
+
+    // Format date for display
+    const formatMessageDate = (dateString: string) => {
+        try {
+            // Handle timezone format that includes colon in offset (e.g., +05:00)
+            const normalizedDateString = dateString.replace(/([+-]\d{2}):(\d{2})$/, '$1$2');
+            const date = new Date(normalizedDateString);
+            return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        } catch (e) {
+            // Fallback to original string if parsing fails
+            return dateString;
+        }
     };
 
     return (
@@ -132,41 +188,55 @@ const Support: React.FC<SupportProps> = ({ tickets, onCreateTicket, onAddMessage
                                  <div className="text-tg-text font-medium">{selectedTicket.subject}</div>
                              </div>
 
-                             {/* Initial Message */}
-                             <div className="flex justify-end">
-                                 <div className="bg-tg-blue text-white rounded-2xl rounded-tr-none py-2 px-4 max-w-[85%] shadow-sm">
-                                     <p className="text-sm">{selectedTicket.message}</p>
-                                     <div className="text-[10px] text-white/70 text-right mt-1">{selectedTicket.date}</div>
-                                 </div>
-                             </div>
-
-                             {/* Admin Reply (Legacy support) */}
-                             {selectedTicket.reply && (
-                                <div className="flex justify-start">
-                                    <div className="bg-tg-hover text-tg-text rounded-2xl rounded-tl-none py-2 px-4 max-w-[85%] border border-tg-separator">
-                                        <p className="text-xs text-tg-blue font-bold mb-1">Поддержка</p>
-                                        <p className="text-sm">{selectedTicket.reply}</p>
-                                        <div className="text-[10px] text-tg-hint mt-1 text-right">Admin</div>
-                                    </div>
-                                </div>
-                             )}
-
-                             {/* Dynamic Messages */}
-                             {selectedTicket.messages?.map((msg, idx) => (
-                                 <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                     <div className={`rounded-2xl py-2 px-4 max-w-[85%] shadow-sm ${
-                                         msg.sender === 'user' 
-                                            ? 'bg-tg-blue text-white rounded-tr-none' 
-                                            : 'bg-tg-hover text-tg-text rounded-tl-none border border-tg-separator'
-                                     }`}>
-                                         {msg.sender === 'admin' && <p className="text-xs text-tg-blue font-bold mb-1">Поддержка</p>}
-                                         <p className="text-sm">{msg.text}</p>
-                                         <div className={`text-[10px] mt-1 ${msg.sender === 'user' ? 'text-white/70 text-right' : 'text-tg-hint'}`}>
-                                             {msg.date}
-                                         </div>
+                             {/* Initial Message */}{
+                                 loadingTicket ? (
+                                     <div className="flex justify-center">
+                                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-tg-blue"></div>
                                      </div>
-                                 </div>
-                             ))}
+                                 ) : (
+                                     <>
+                                         <div className="flex justify-end">
+                                             <div className="bg-tg-blue text-white rounded-2xl rounded-tr-none py-2 px-4 max-w-[85%] shadow-sm">
+                                                 <p className="text-sm">{selectedTicket.message}</p>
+                                                 <div className="text-[10px] text-white/70 text-right mt-1">{selectedTicket.date}</div>
+                                             </div>
+                                         </div>
+
+                                         {/* Admin Reply (Legacy support) */}
+                                         {selectedTicket.reply && (
+                                            <div className="flex justify-start">
+                                                <div className="bg-tg-hover text-tg-text rounded-2xl rounded-tl-none py-2 px-4 max-w-[85%] border border-tg-separator">
+                                                    <p className="text-xs text-tg-blue font-bold mb-1">Поддержка</p>
+                                                    <p className="text-sm">{selectedTicket.reply}</p>
+                                                    <div className="text-[10px] text-tg-hint mt-1 text-right">Admin</div>
+                                                </div>
+                                            </div>
+                                         )}
+
+                                         {/* Dynamic Messages */}
+                                         {selectedTicket.messages?.map((msg) => (
+                                             <div 
+                                                key={msg.id} 
+                                                className={`flex ${!msg.is_admin ? 'justify-end' : 'justify-start'}`}
+                                             >
+                                                 <div className={`rounded-2xl py-2 px-4 max-w-[85%] shadow-sm ${
+                                                     !msg.is_admin 
+                                                        ? 'bg-tg-blue text-white rounded-tr-none' 
+                                                        : 'bg-tg-hover text-tg-text rounded-tl-none border border-tg-separator'
+                                                 }`}>
+                                                     {msg.is_admin && (
+                                                        <p className="text-xs text-tg-blue font-bold mb-1">Поддержка</p>
+                                                     )}
+                                                     <p className="text-sm">{msg.message}</p>
+                                                     <div className={`text-[10px] mt-1 ${!msg.is_admin ? 'text-white/70 text-right' : 'text-tg-hint'}`}>
+                                                         {formatMessageDate(msg.created_at)}
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         ))}
+                                     </>
+                                 )
+                             }
                              
                              <div ref={messagesEndRef} />
                          </div>
@@ -254,4 +324,3 @@ const Support: React.FC<SupportProps> = ({ tickets, onCreateTicket, onAddMessage
 };
 
 export default Support;
-
