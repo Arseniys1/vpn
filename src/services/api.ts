@@ -1,7 +1,48 @@
 // User API Service (non-admin)
-import { authenticatedApiCall } from './authService';
+import {
+  authenticatedApiCall,
+} from './authService';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+
+export const apiCall = async (endpoint: string, options: RequestInit = {}, retries = 3) => {
+  // Prepare headers
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  // Copy any existing headers
+  if (options.headers) {
+    Object.assign(headers, options.headers);
+  }
+
+  let lastError: Error | null = null;
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Request failed' }));
+
+        throw new Error(error.error || `HTTP ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      lastError = error as Error;
+      if (i < retries - 1) {
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+      }
+    }
+  }
+
+  throw lastError || new Error('Request failed after retries');
+};
 
 // User API
 export const getMe = async () => {

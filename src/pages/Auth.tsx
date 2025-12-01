@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authenticatedApiCall } from '../services/authService';
+import {apiCall} from "@/services/api.ts";
 
 const Auth: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -9,13 +9,6 @@ const Auth: React.FC = () => {
   const [authState, setAuthState] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Get the base URL for non-API endpoints
-  const getBaseURL = () => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-    // Remove /api/v1 from the end if present
-    return apiBaseUrl.replace(/\/api\/v1$/, '');
-  };
-
   // Poll for authentication status
   useEffect(() => {
     let pollInterval: NodeJS.Timeout | null = null;
@@ -23,9 +16,7 @@ const Auth: React.FC = () => {
     if (isPolling && authState) {
       const checkAuthStatus = async () => {
         try {
-          const baseUrl = getBaseURL();
-          const response = await fetch(`${baseUrl}/auth/status?state=${authState}`);
-          const data = await response.json();
+          const data = await apiCall(`/auth/status?state=${authState}`);
           
           if (data.status === 'complete') {
             // Authentication complete, store token and redirect
@@ -66,23 +57,16 @@ const Auth: React.FC = () => {
     try {
       // Call the browser auth endpoint to create an auth session
       // This endpoint is at the root level, not under /api/v1
-      const baseURL = getBaseURL();
-      const response = await fetch(`${baseURL}/auth/browser`);
+      const data = await apiCall(`/auth/browser`);
 
-      if (response.ok) {
-        // Get the redirect URL from the response
-        const data = await response.json();
-        const redirectUrl = data.url;
-        const url = new URL(redirectUrl);
-        const state = url.searchParams.get('start');
-        if (state) {
-          setAuthState(state);
-          setIsPolling(true);
-          // Open Telegram in a new tab/window
-          window.open(redirectUrl, '_blank');
-        } else {
-          setError('Failed to initiate Telegram authentication. Please try again.');
-        }
+      const redirectUrl = data.url;
+      const url = new URL(redirectUrl);
+      const state = url.searchParams.get('start');
+      if (state) {
+        setAuthState(state);
+        setIsPolling(true);
+        // Open Telegram in a new tab/window
+        window.open(redirectUrl, '_blank');
       } else {
         setError('Failed to initiate Telegram authentication. Please try again.');
       }
