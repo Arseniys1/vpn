@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {apiCall} from "@/services/api.ts";
+import { isAuthenticated } from '@/services/authService';
 
 const Auth: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -12,6 +13,14 @@ const Auth: React.FC = () => {
   const [botLink, setBotLink] = useState<string | null>(null);
   const [showManualAuth, setShowManualAuth] = useState(false);
   const navigate = useNavigate();
+
+  // Check if user is already authenticated
+  useEffect(() => {
+    if (isAuthenticated()) {
+      // Redirect to main page if already authenticated
+      window.location.href = '/';
+    }
+  }, [navigate]);
 
   // Poll for authentication status
   useEffect(() => {
@@ -132,6 +141,11 @@ const Auth: React.FC = () => {
       setError('Не удалось скопировать ссылку на бота');
     }
   };
+
+  // Don't render anything if user is already authenticated (redirecting)
+  if (isAuthenticated()) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-tg-bg flex items-center justify-center p-4">
