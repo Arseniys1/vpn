@@ -65,7 +65,7 @@ func (s *SubscriptionService) PurchaseSubscription(userID, planID uuid.UUID) (*m
 
 	// Get or create active subscription
 	existing, _ := s.GetActiveSubscription(userID)
-	
+
 	var startTime time.Time
 	if existing != nil && existing.ExpiresAt != nil && existing.ExpiresAt.After(time.Now()) {
 		startTime = *existing.ExpiresAt
@@ -91,11 +91,20 @@ func (s *SubscriptionService) PurchaseSubscription(userID, planID uuid.UUID) (*m
 		if err := s.db.Save(existing).Error; err != nil {
 			return nil, fmt.Errorf("failed to update subscription: %w", err)
 		}
+		// Preload relations for the updated subscription
+		if err := s.db.Preload("User").Preload("Plan").First(&existing, "id = ?", existing.ID).Error; err != nil {
+			return nil, fmt.Errorf("failed to load subscription with relations: %w", err)
+		}
 		return existing, nil
 	}
 
 	if err := s.db.Create(&subscription).Error; err != nil {
 		return nil, fmt.Errorf("failed to create subscription: %w", err)
+	}
+
+	// Preload relations for the new subscription
+	if err := s.db.Preload("User").Preload("Plan").First(&subscription, "id = ?", subscription.ID).Error; err != nil {
+		return nil, fmt.Errorf("failed to load subscription with relations: %w", err)
 	}
 
 	return &subscription, nil
@@ -112,4 +121,3 @@ func (s *SubscriptionService) HasActiveSubscription(userID uuid.UUID) bool {
 	subscription, _ := s.GetActiveSubscription(userID)
 	return subscription != nil
 }
-

@@ -145,11 +145,11 @@ const App: React.FC = () => {
       const result = await api.purchasePlan(purchasePlan.id);
       
       // Update local state
-      setBalance(result.new_balance);
+      setBalance(result.user.balance);
       setUserSubscription({
         active: true,
-        expiresAt: new Date(result.subscription.expires_at),
-        planName: result.subscription.plan_name
+        expiresAt: new Date(result.expires_at),
+        planName: result.plan.name,
       });
       
       if (window.Telegram?.WebApp?.HapticFeedback) {
