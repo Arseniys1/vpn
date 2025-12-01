@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Modal from './components/Modal';
@@ -41,12 +41,12 @@ const App: React.FC = () => {
   const [isAuthenticatedState, setIsAuthenticatedState] = useState(false);
   const [authMethod, setAuthMethod] = useState<'telegram' | 'browser' | 'none'>('none');
 
-  let initialized = false;
+  const initialized = useRef(false);
 
   useEffect(() => {
     const initializeApp = () => {
-      if (initialized) return;
-      initialized = true;
+      if (initialized.current) return;
+      initialized.current = true;
 
       // Initialize Telegram WebApp if in Telegram
       initializeTelegramWebApp();
