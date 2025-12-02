@@ -33,6 +33,7 @@ func (s *UserService) GetOrCreateUser(telegramID int64, username, firstName, las
 			LanguageCode: languageCode,
 			Balance:      0,
 			IsActive:     true,
+			IsAdmin:      false,
 		}
 
 		if err := s.db.Create(&user).Error; err != nil {
@@ -118,4 +119,3 @@ func stringPtr(s string) *string {
 	}
 	return &s
 }
-

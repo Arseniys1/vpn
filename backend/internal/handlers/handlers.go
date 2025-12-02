@@ -21,6 +21,7 @@ type Handlers struct {
 	AdminHandler        *AdminHandler
 	SupportHandler      *SupportHandler
 	AuthHandler         *AuthHandler
+	WebHookHandler      *WebHookHandler
 }
 
 func NewHandlers(
@@ -40,6 +41,7 @@ func NewHandlers(
 		AdminHandler:        NewAdminHandler(db),
 		SupportHandler:      NewSupportHandler(db, userService),
 		AuthHandler:         NewAuthHandler(db),
+		WebHookHandler:      NewWebhookHandler(db, userService, paymentService),
 	}
 }
 
@@ -51,6 +53,7 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, cfg *config.Config, db *database.D
 	})
 
 	h.UserHandler.SetConfig(cfg)
+	h.WebHookHandler.SetConfig(cfg)
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
@@ -72,10 +75,7 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, cfg *config.Config, db *database.D
 	h.AuthHandler.SetConfig(cfg)
 
 	// Telegram webhook endpoint (public)
-	r.POST("/webhook/telegram", h.AuthHandler.TelegramWebhook)
-
-	// Telegram Stars payment webhook endpoint (public)
-	r.POST("/webhook/stars-payment", h.UserHandler.ProcessStarsPaymentWebhook)
+	r.POST("/webhook/telegram", h.WebHookHandler.HandleWebhook)
 
 	// Public endpoint to get bot information
 	r.GET("/bot-info", func(c *gin.Context) {
