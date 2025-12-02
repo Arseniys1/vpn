@@ -29,7 +29,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
       
       {/* Content */}
       <div className="bg-tg-secondary w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] z-10 transform transition-transform duration-300">
-        <div className="flex items-center justify-between p-4 border-b border-tg-separator-50">
+        <div className="flex items-center justify-between p-4 border-b border-tg-separator/50">
           <h3 className="text-lg font-semibold text-tg-text">{title}</h3>
           <button 
             onClick={onClose} 
@@ -47,3 +47,4 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
 };
 
 export default Modal;
+

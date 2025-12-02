@@ -156,7 +156,7 @@ const Auth: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-tg-secondary rounded-xl p-6 mb-6 border border-tg-separator-50">
+        <div className="bg-tg-secondary rounded-xl p-6 mb-6 border border-tg-separator/50">
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-tg-text mb-2">VPN Connect</h1>
             <p className="text-tg-hint">Безопасный и быстрый VPN сервис</p>
@@ -215,7 +215,7 @@ const Auth: React.FC = () => {
         </div>
         
         {showManualAuth && (
-          <div className="bg-tg-secondary rounded-xl p-5 border border-tg-separator-50 mb-6">
+          <div className="bg-tg-secondary rounded-xl p-5 border border-tg-separator/50 mb-6">
             <h3 className="font-bold text-tg-text mb-3 text-center">Если страница не открылась автоматически:</h3>
             <div className="flex flex-col sm:flex-row gap-2 mb-3">
               <button
@@ -269,7 +269,7 @@ const Auth: React.FC = () => {
           </div>
         )}
         
-        <div className="bg-tg-secondary rounded-xl p-5 border border-tg-separator-50">
+        <div className="bg-tg-secondary rounded-xl p-5 border border-tg-separator/50">
           <h3 className="font-bold text-tg-text mb-3 text-center">Как это работает</h3>
           <ol className="text-sm text-tg-hint space-y-3 list-decimal list-inside pl-4">
             <li>Нажмите кнопку "Авторизоваться через Telegram"</li>
