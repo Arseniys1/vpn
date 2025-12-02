@@ -95,7 +95,7 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, cfg *config.Config, db *database.D
 	auth := r.Group("/auth")
 	{
 		// Browser authentication - redirect to Telegram
-		auth.GET("/browser", h.AuthHandler.BrowserAuthRedirect)
+		auth.GET("/browser", h.AuthHandler.BrowserAuth)
 
 		// Validate browser token
 		auth.GET("/validate", h.AuthHandler.ValidateBrowserToken)

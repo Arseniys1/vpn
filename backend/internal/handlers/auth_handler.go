@@ -33,8 +33,8 @@ func (h *AuthHandler) SetConfig(cfg *config.Config) {
 	h.config = cfg
 }
 
-// BrowserAuthRedirect redirects browser users to Telegram OAuth
-func (h *AuthHandler) BrowserAuthRedirect(c *gin.Context) {
+// BrowserAuth redirects browser users to Telegram OAuth
+func (h *AuthHandler) BrowserAuth(c *gin.Context) {
 	// Generate a unique state parameter for CSRF protection
 	state := generateRandomString(32)
 
@@ -66,12 +66,6 @@ func (h *AuthHandler) BrowserAuthRedirect(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"url": telegramURL,
 	})
-}
-
-// TelegramOAuthCallback handles the callback from Telegram OAuth
-func (h *AuthHandler) TelegramOAuthCallback(c *gin.Context) {
-	// This endpoint would be called by Telegram webhook when user interacts with bot
-	// For now, we'll handle it through the /start command in the bot
 }
 
 // ValidateBrowserToken validates a browser authentication token
@@ -127,88 +121,6 @@ func (h *AuthHandler) CheckAuthStatus(c *gin.Context) {
 		"token":   browserSession.Token,
 		"user_id": browserSession.UserID,
 	})
-}
-
-func (h *AuthHandler) getOrCreateUser(telegramID int64, firstName, lastName, username string) (*models.User, error) {
-	var user models.User
-
-	// Try to find existing user
-	if err := h.db.DB.Where("telegram_id = ?", telegramID).First(&user).Error; err == nil {
-		// User exists, update info if needed
-		needsUpdate := false
-
-		if user.FirstName != firstName {
-			user.FirstName = firstName
-			needsUpdate = true
-		}
-
-		if (user.LastName == nil && lastName != "") || (user.LastName != nil && *user.LastName != lastName) {
-			if lastName != "" {
-				user.LastName = &lastName
-			} else {
-				user.LastName = nil
-			}
-			needsUpdate = true
-		}
-
-		if (user.Username == nil && username != "") || (user.Username != nil && *user.Username != username) {
-			if username != "" {
-				user.Username = &username
-			} else {
-				user.Username = nil
-			}
-			needsUpdate = true
-		}
-
-		if needsUpdate {
-			if err := h.db.DB.Save(&user).Error; err != nil {
-				return nil, fmt.Errorf("failed to update user: %w", err)
-			}
-		}
-
-		return &user, nil
-	}
-
-	// Create new user
-	user = models.User{
-		ID:         uuid.New(),
-		TelegramID: telegramID,
-		FirstName:  firstName,
-		Balance:    0,
-		IsActive:   true,
-		IsAdmin:    false,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-	}
-
-	// Set optional fields
-	if lastName != "" {
-		user.LastName = &lastName
-	}
-
-	if username != "" {
-		user.Username = &username
-	}
-
-	// Generate referral code
-	user.ReferralCode = generateReferralCode()
-
-	if err := h.db.DB.Create(&user).Error; err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
-	}
-
-	return &user, nil
-}
-
-// generateReferralCode generates a unique referral code
-func generateReferralCode() string {
-	// Generate a random 8-character alphanumeric string
-	bytes := make([]byte, 4)
-	if _, err := rand.Read(bytes); err != nil {
-		// Fallback to timestamp-based string
-		return fmt.Sprintf("%x", time.Now().UnixNano())[:8]
-	}
-	return fmt.Sprintf("%x", bytes)
 }
 
 // generateRandomString generates a random string of given length
