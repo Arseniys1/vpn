@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import TgCard from '../components/TgCard';
-import ThemeSwitcher from '../components/ThemeSwitcher';
 import { UserSubscription } from '../types';
 
 interface MainProps {
@@ -92,9 +91,6 @@ const Main: React.FC<MainProps> = ({ subscription, adminMessage, isAdmin, userNa
             </div>
         </TgCard>
 
-        {/* Theme Switcher */}
-        <ThemeSwitcher />
-
         {/* Quick Actions & News Grid */}
         <div className="flex flex-col gap-4">
             {isAdmin && (
@@ -152,3 +148,4 @@ const Main: React.FC<MainProps> = ({ subscription, adminMessage, isAdmin, userNa
 };
 
 export default Main;
+
