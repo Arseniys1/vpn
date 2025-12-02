@@ -11,7 +11,10 @@ export default {
           bg: 'var(--tg-bg)',
           secondary: 'var(--tg-secondary)',
           hover: 'var(--tg-hover)',
-          separator: 'var(--tg-separator)',
+          separator: {
+            DEFAULT: 'var(--tg-separator)',
+            50: 'var(--tg-separator-50)',
+          },
           text: 'var(--tg-text)',
           hint: 'var(--tg-hint)',
           blue: 'var(--tg-blue)',

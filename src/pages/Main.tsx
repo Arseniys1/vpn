@@ -30,7 +30,7 @@ const Main: React.FC<MainProps> = ({ subscription, adminMessage, isAdmin, userNa
 
       {adminMessage && (
         <div className="bg-tg-secondary border border-tg-blue/30 rounded-lg overflow-hidden mb-6 relative h-9 flex items-center shadow-lg shadow-tg-blue/5">
-            <div className="absolute inset-y-0 left-0 bg-tg-secondary z-10 px-2 flex items-center border-r border-tg-separator/50">
+            <div className="absolute inset-y-0 left-0 bg-tg-secondary z-10 px-2 flex items-center border-r border-tg-separator-50">
                 <i className="fas fa-bullhorn text-tg-blue"></i>
             </div>
             <div className="w-full overflow-hidden flex items-center">
@@ -63,7 +63,7 @@ const Main: React.FC<MainProps> = ({ subscription, adminMessage, isAdmin, userNa
                 )}
             </div>
 
-            <div className="border-t border-tg-separator/50 my-3"></div>
+            <div className="border-t border-tg-separator-50 my-3"></div>
 
             {subscription.active ? (
                 <div className="flex justify-between items-center">
