@@ -174,6 +174,8 @@ const App: React.FC = () => {
 
   const handleTopUp = async () => {
     try {
+      // This function is now handled directly in the Shop component
+      // Keeping it for backward compatibility or other uses
       const result = await api.topUp(500);
       setBalance(result.new_balance);
       

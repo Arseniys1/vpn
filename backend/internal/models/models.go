@@ -217,6 +217,20 @@ type QueueTask struct {
 	Data         map[string]interface{} `json:"data,omitempty"`
 }
 
+// Payment represents a payment transaction
+type Payment struct {
+	ID          uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	UserID      uuid.UUID      `gorm:"type:uuid;not null;index" json:"user_id"`
+	TelegramID  int64          `gorm:"not null;index" json:"telegram_id"`
+	Amount      int64          `gorm:"not null" json:"amount"`
+	Status      string         `gorm:"default:'pending'" json:"status"` // pending, completed, failed, refunded
+	Payload     string         `gorm:"not null" json:"payload"`
+	InvoiceLink string         `gorm:"type:text" json:"invoice_link,omitempty"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
 // AuthSession represents a browser authentication session
 type AuthSession struct {
 	ID        uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
@@ -242,6 +256,14 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 	}
 	if u.ReferralCode == "" {
 		u.ReferralCode = generateReferralCode()
+	}
+	return nil
+}
+
+// BeforeCreate hook for Payment
+func (p *Payment) BeforeCreate(tx *gorm.DB) error {
+	if p.ID == uuid.Nil {
+		p.ID = uuid.New()
 	}
 	return nil
 }

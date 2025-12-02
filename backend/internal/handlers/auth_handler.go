@@ -185,7 +185,7 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 		if err := h.db.DB.Where("state = ? AND expires_at > ?", state, time.Now()).First(&authSession).Error; err != nil {
 			log.Warn().Str("state", state).Msg("Invalid or expired authentication session")
 			// Send message to user
-			sendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Authentication session expired or invalid. Please try again from the browser.")
+			SendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Authentication session expired or invalid. Please try again from the browser.")
 			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
@@ -194,7 +194,7 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 		user, err := h.getOrCreateUser(update.Message.From.ID, update.Message.From.FirstName, update.Message.From.LastName, update.Message.From.Username)
 		if err != nil {
 			log.Error().Err(err).Int64("telegram_id", update.Message.From.ID).Msg("Failed to get or create user")
-			sendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Failed to authenticate. Please try again later.")
+			SendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Failed to authenticate. Please try again later.")
 			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
@@ -212,7 +212,7 @@ func (h *AuthHandler) TelegramWebhook(c *gin.Context) {
 
 		if err := h.db.DB.Create(&browserSession).Error; err != nil {
 			log.Error().Err(err).Msg("Failed to create browser session")
-			sendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Failed to create session. Please try again later.")
+			SendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Failed to create session. Please try again later.")
 			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
@@ -414,7 +414,7 @@ func generateRandomString(length int) string {
 }
 
 // sendTelegramMessage sends a message to a Telegram chat
-func sendTelegramMessage(db *database.DB, cfg *config.Config, chatID int64, text string) {
+func SendTelegramMessage(db *database.DB, cfg *config.Config, chatID int64, text string) {
 	// Get bot token from config
 	botToken := cfg.Telegram.BotToken
 	if botToken == "" {

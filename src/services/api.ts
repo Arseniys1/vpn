@@ -56,6 +56,13 @@ export const topUp = async (amount: number) => {
   });
 };
 
+export const initiateStarsPayment = async (amount: number) => {
+  return authenticatedApiCall('/users/initiate-stars-payment', {
+    method: 'POST',
+    body: JSON.stringify({ amount }),
+  });
+};
+
 // Servers API
 export const getServers = async () => {
   return authenticatedApiCall('/servers');

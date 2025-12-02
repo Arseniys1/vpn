@@ -82,12 +82,13 @@ func main() {
 
 	// Initialize services
 	userService := services.NewUserService(db)
+	paymentService := services.NewPaymentService(db, cfg)
 	subscriptionService := services.NewSubscriptionService(db)
 	planService := services.NewPlanService(db)
 	connectionService := services.NewConnectionService(db, q)
 
 	// Initialize handlers
-	h := handlers.NewHandlers(userService, subscriptionService, planService, connectionService, db)
+	h := handlers.NewHandlers(userService, paymentService, subscriptionService, planService, connectionService, db)
 
 	// Setup router
 	r := gin.New()

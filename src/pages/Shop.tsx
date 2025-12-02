@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import TgCard from '../components/TgCard';
 import SectionHeader from '../components/SectionHeader';
+import Modal from '../components/Modal';
 import { Plan, UserSubscription } from '../types';
 import * as api from '../services/api';
 
@@ -14,6 +15,8 @@ interface ShopProps {
 const Shop: React.FC<ShopProps> = ({ balance, subscription, onBuy, onTopUp }) => {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false);
+  const [starsAmount, setStarsAmount] = useState(500);
 
   useEffect(() => {
     loadPlans();
@@ -38,6 +41,35 @@ const Shop: React.FC<ShopProps> = ({ balance, subscription, onBuy, onTopUp }) =>
     }
   };
 
+  const handleCustomTopUp = async () => {
+    setIsTopUpModalOpen(true);
+  };
+
+  const handleConfirmCustomTopUp = async () => {
+    try {
+      // Validate amount
+      if (starsAmount < 1 || starsAmount > 2500) {
+        return;
+      }
+
+      // Initiate Telegram Stars payment
+      const paymentResult = await api.initiateStarsPayment(starsAmount);
+      
+      // Close modal
+      setIsTopUpModalOpen(false);
+      
+      // Open the invoice link in Telegram
+      if (paymentResult.invoice_link) {
+        window.open(paymentResult.invoice_link, '_blank');
+      } else {
+        // Fallback to direct top-up if payment initiation fails
+        const result = await api.topUp(starsAmount);
+      }
+    } catch (error: any) {
+      console.error('Payment initiation failed:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="pt-4 px-4 w-full">
@@ -58,7 +90,7 @@ const Shop: React.FC<ShopProps> = ({ balance, subscription, onBuy, onTopUp }) =>
              </div>
          </div>
          <div 
-            onClick={onTopUp}
+            onClick={handleCustomTopUp}
             className="w-10 h-10 rounded-full bg-yellow-400/10 flex items-center justify-center cursor-pointer active:scale-95 transition-transform hover:bg-yellow-400/20"
          >
              <i className="fas fa-plus text-yellow-400"></i>
@@ -94,9 +126,43 @@ const Shop: React.FC<ShopProps> = ({ balance, subscription, onBuy, onTopUp }) =>
           );
         })}
       </div>
+
+      {/* Custom Top-Up Modal */}
+      <Modal isOpen={isTopUpModalOpen} onClose={() => setIsTopUpModalOpen(false)} title="Пополнение баланса">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Количество звезд</label>
+            <input
+              type="number"
+              min="1"
+              max="2500"
+              value={starsAmount}
+              onChange={(e) => setStarsAmount(Math.min(2500, Math.max(1, Number(e.target.value) || 0)))}
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+              placeholder="Введите количество звезд"
+            />
+            <div className="text-xs text-gray-400 mt-1">Минимум 1, максимум 2500 звезд</div>
+          </div>
+          
+          <div className="flex gap-3">
+            <button
+              onClick={() => setIsTopUpModalOpen(false)}
+              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg transition"
+            >
+              Отмена
+            </button>
+            <button
+              onClick={handleConfirmCustomTopUp}
+              disabled={starsAmount < 1 || starsAmount > 2500}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white py-2 px-4 rounded-lg transition"
+            >
+              Пополнить
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
 
 export default Shop;
-

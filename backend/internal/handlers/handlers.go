@@ -25,13 +25,14 @@ type Handlers struct {
 
 func NewHandlers(
 	userService *services.UserService,
+	paymentService *services.PaymentService,
 	subscriptionService *services.SubscriptionService,
 	planService *services.PlanService,
 	connectionService *services.ConnectionService,
 	db *database.DB,
 ) *Handlers {
 	return &Handlers{
-		UserHandler:         NewUserHandler(userService, db),
+		UserHandler:         NewUserHandler(userService, paymentService, db),
 		SubscriptionHandler: NewSubscriptionHandler(subscriptionService, planService, userService),
 		PlanService:         planService,
 		ServerHandler:       NewServerHandler(db, userService),
@@ -72,6 +73,9 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, cfg *config.Config, db *database.D
 
 	// Telegram webhook endpoint (public)
 	r.POST("/webhook/telegram", h.AuthHandler.TelegramWebhook)
+
+	// Telegram Stars payment webhook endpoint (public)
+	r.POST("/webhook/stars-payment", h.UserHandler.ProcessStarsPaymentWebhook)
 
 	// Public endpoint to get bot information
 	r.GET("/bot-info", func(c *gin.Context) {
@@ -129,6 +133,7 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, cfg *config.Config, db *database.D
 			{
 				userRoutes.GET("/me", h.UserHandler.Me)
 				userRoutes.POST("/topup", h.UserHandler.TopUp)
+				userRoutes.POST("/initiate-stars-payment", h.UserHandler.InitiateStarsPayment)
 				userRoutes.GET("/referral-stats", h.UserHandler.GetReferralStats)
 			}
 

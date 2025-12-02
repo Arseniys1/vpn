@@ -81,6 +81,7 @@ func (db *DB) AutoMigrate() error {
 		&models.ReferralStats{},
 		&models.AuthSession{},
 		&models.BrowserSession{},
+		&models.Payment{}, // Add the Payment model
 	)
 	if err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
