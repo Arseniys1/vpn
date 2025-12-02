@@ -30,6 +30,7 @@ func NewHandlers(
 	subscriptionService *services.SubscriptionService,
 	planService *services.PlanService,
 	connectionService *services.ConnectionService,
+	telegramService *services.TelegramService,
 	db *database.DB,
 ) *Handlers {
 	return &Handlers{
@@ -41,7 +42,7 @@ func NewHandlers(
 		AdminHandler:        NewAdminHandler(db),
 		SupportHandler:      NewSupportHandler(db, userService),
 		AuthHandler:         NewAuthHandler(db),
-		WebHookHandler:      NewWebhookHandler(db, userService, paymentService),
+		WebHookHandler:      NewWebhookHandler(db, userService, paymentService, telegramService),
 	}
 }
 

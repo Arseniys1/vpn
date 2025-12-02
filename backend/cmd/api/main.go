@@ -68,27 +68,23 @@ func main() {
 	}
 	defer q.Close()
 
-	// Initialize Telegram service and set webhook
-	if cfg.Telegram.BotToken != "" && cfg.Telegram.WebhookURL != "" {
-		telegramService := services.NewTelegramService(cfg.Telegram.BotToken)
-
-		// Set webhook
-		if err := telegramService.SetWebhook(cfg.Telegram.WebhookURL); err != nil {
-			log.Warn().Err(err).Msg("Failed to set Telegram webhook")
-		} else {
-			log.Info().Str("webhook_url", cfg.Telegram.WebhookURL).Msg("Telegram webhook set successfully")
-		}
-	}
-
 	// Initialize services
 	userService := services.NewUserService(db)
 	paymentService := services.NewPaymentService(db, cfg)
 	subscriptionService := services.NewSubscriptionService(db)
 	planService := services.NewPlanService(db)
 	connectionService := services.NewConnectionService(db, q)
+	telegramService := services.NewTelegramService(cfg.Telegram.BotToken)
+
+	// Set webhook
+	if err := telegramService.SetWebhook(cfg.Telegram.WebhookURL); err != nil {
+		log.Warn().Err(err).Msg("Failed to set Telegram webhook")
+	} else {
+		log.Info().Str("webhook_url", cfg.Telegram.WebhookURL).Msg("Telegram webhook set successfully")
+	}
 
 	// Initialize handlers
-	h := handlers.NewHandlers(userService, paymentService, subscriptionService, planService, connectionService, db)
+	h := handlers.NewHandlers(userService, paymentService, subscriptionService, planService, connectionService, telegramService, db)
 
 	// Setup router
 	r := gin.New()

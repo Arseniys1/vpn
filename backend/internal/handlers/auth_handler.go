@@ -1,10 +1,8 @@
 package handlers
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -131,56 +129,4 @@ func generateRandomString(length int) string {
 		return fmt.Sprintf("%d", time.Now().UnixNano())
 	}
 	return base64.URLEncoding.EncodeToString(bytes)[:length]
-}
-
-// sendTelegramMessage sends a message to a Telegram chat
-func SendTelegramMessage(db *database.DB, cfg *config.Config, chatID int64, text string) {
-	// Get bot token from config
-	botToken := cfg.Telegram.BotToken
-	if botToken == "" {
-		log.Error().Msg("TELEGRAM_BOT_TOKEN not set in config")
-		return
-	}
-
-	// Telegram API endpoint for sending messages
-	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", botToken)
-
-	// Prepare the request payload
-	payload := map[string]interface{}{
-		"chat_id": chatID,
-		"text":    text,
-	}
-
-	// Convert payload to JSON
-	jsonPayload, err := json.Marshal(payload)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to marshal payload")
-		return
-	}
-
-	// Create HTTP request
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to create request")
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	// Create HTTP client with timeout
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-
-	// Send request
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to send request")
-		return
-	}
-	defer resp.Body.Close()
-
-	// Check response status
-	if resp.StatusCode != http.StatusOK {
-		log.Error().Int("status_code", resp.StatusCode).Msg("Telegram API returned non-OK status")
-	}
 }

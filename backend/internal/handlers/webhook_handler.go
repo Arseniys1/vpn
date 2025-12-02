@@ -85,17 +85,19 @@ type Update struct {
 }
 
 type WebHookHandler struct {
-	db             *database.DB
-	config         *config.Config
-	userService    *services.UserService
-	paymentService *services.PaymentService
+	db              *database.DB
+	config          *config.Config
+	userService     *services.UserService
+	paymentService  *services.PaymentService
+	telegramService *services.TelegramService
 }
 
-func NewWebhookHandler(db *database.DB, userService *services.UserService, paymentService *services.PaymentService) *WebHookHandler {
+func NewWebhookHandler(db *database.DB, userService *services.UserService, paymentService *services.PaymentService, telegramService *services.TelegramService) *WebHookHandler {
 	return &WebHookHandler{
-		db:             db,
-		userService:    userService,
-		paymentService: paymentService,
+		db:              db,
+		userService:     userService,
+		paymentService:  paymentService,
+		telegramService: telegramService,
 	}
 }
 
@@ -142,7 +144,7 @@ func (h *WebHookHandler) commands(c *gin.Context, update Update) {
 		if err := h.db.DB.Where("state = ? AND expires_at > ?", state, time.Now()).First(&authSession).Error; err != nil {
 			log.Warn().Str("state", state).Msg("Invalid or expired authentication session")
 			// Send message to user
-			SendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Authentication session expired or invalid. Please try again from the browser.")
+			h.telegramService.SendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Authentication session expired or invalid. Please try again from the browser.")
 			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
@@ -151,7 +153,7 @@ func (h *WebHookHandler) commands(c *gin.Context, update Update) {
 		user, err := h.userService.GetOrCreateUser(update.Message.From.ID, update.Message.From.Username, update.Message.From.FirstName, update.Message.From.LastName, update.Message.From.LanguageCode)
 		if err != nil {
 			log.Error().Err(err).Int64("telegram_id", update.Message.From.ID).Msg("Failed to get or create user")
-			SendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Failed to authenticate. Please try again later.")
+			h.telegramService.SendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Failed to authenticate. Please try again later.")
 			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
@@ -169,7 +171,7 @@ func (h *WebHookHandler) commands(c *gin.Context, update Update) {
 
 		if err := h.db.DB.Create(&browserSession).Error; err != nil {
 			log.Error().Err(err).Msg("Failed to create browser session")
-			SendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Failed to create session. Please try again later.")
+			h.telegramService.SendTelegramMessage(h.db, h.config, update.Message.Chat.ID, "❌ Failed to create session. Please try again later.")
 			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
@@ -326,7 +328,7 @@ func (h *WebHookHandler) starsPayment(c *gin.Context, update Update) {
 
 		// Send confirmation message to user
 		if update.Message.Chat.ID != 0 {
-			SendTelegramMessage(h.db, h.config, update.Message.Chat.ID,
+			h.telegramService.SendTelegramMessage(h.db, h.config, update.Message.Chat.ID,
 				fmt.Sprintf("✅ Payment successful! Your balance has been topped up with %d Stars.", update.Message.SuccessfulPayment.TotalAmount))
 		}
 
