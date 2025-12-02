@@ -17,10 +17,7 @@ export default {
           },
           text: 'var(--tg-text)',
           hint: 'var(--tg-hint)',
-          blue: {
-            DEFAULT: 'var(--tg-blue)',
-            30: 'var(--tg-blue-30)',
-          },
+          blue: 'var(--tg-blue)',
           red: 'var(--tg-red)',
           green: 'var(--tg-green)',
           buttonText: 'var(--tg-button-text)'

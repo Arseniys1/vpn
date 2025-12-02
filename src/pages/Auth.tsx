@@ -168,7 +168,7 @@ const Auth: React.FC = () => {
           </p>
           
           {isPolling && (
-            <div className="bg-tg-blue/10 border border-tg-blue-30 text-tg-blue px-4 py-3 rounded-lg mb-4">
+            <div className="bg-tg-blue/10 border border-tg-blue/30 text-tg-blue px-4 py-3 rounded-lg mb-4">
               <div className="flex items-center">
                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-tg-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
