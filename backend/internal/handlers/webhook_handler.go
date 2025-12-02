@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -31,8 +32,15 @@ type Update struct {
 			ID   int64  `json:"id"`
 			Type string `json:"type"`
 		} `json:"chat"`
-		Date int    `json:"date"`
-		Text string `json:"text"`
+		Date              int    `json:"date"`
+		Text              string `json:"text"`
+		SuccessfulPayment struct {
+			Currency                string `json:"currency"`
+			TotalAmount             int    `json:"total_amount"`
+			InvoicePayload          string `json:"invoice_payload"`
+			TelegramPaymentChargeID string `json:"telegram_payment_charge_id"`
+			ProviderPaymentChargeID string `json:"provider_payment_charge_id"`
+		} `json:"successful_payment,omitempty"`
 	} `json:"message,omitempty"`
 	CallbackQuery struct {
 		ID   string `json:"id"`
@@ -74,27 +82,6 @@ type Update struct {
 			} `json:"shipping_address,omitempty"`
 		} `json:"order_info,omitempty"`
 	} `json:"pre_checkout_query,omitempty"`
-	SuccessfulPayment struct {
-		Currency         string `json:"currency"`
-		TotalAmount      int    `json:"total_amount"`
-		InvoicePayload   string `json:"invoice_payload"`
-		ShippingOptionID string `json:"shipping_option_id,omitempty"`
-		OrderInfo        struct {
-			Name            string `json:"name,omitempty"`
-			PhoneNumber     string `json:"phone_number,omitempty"`
-			Email           string `json:"email,omitempty"`
-			ShippingAddress struct {
-				CountryCode string `json:"country_code"`
-				State       string `json:"state"`
-				City        string `json:"city"`
-				StreetLine1 string `json:"street_line1"`
-				StreetLine2 string `json:"street_line2"`
-				PostCode    string `json:"post_code"`
-			} `json:"shipping_address,omitempty"`
-		} `json:"order_info,omitempty"`
-		TelegramPaymentChargeID string `json:"telegram_payment_charge_id"`
-		ProviderPaymentChargeID string `json:"provider_payment_charge_id"`
-	} `json:"successful_payment,omitempty"`
 }
 
 type WebHookHandler struct {
@@ -119,6 +106,14 @@ func (h *WebHookHandler) SetConfig(cfg *config.Config) {
 func (h *WebHookHandler) HandleWebhook(c *gin.Context) {
 	var update Update
 
+	if c.Request.Body != nil {
+		bodyBytes, _ := io.ReadAll(c.Request.Body)
+
+		log.Info().Str("raw_body", string(bodyBytes)).Msg("Incoming Telegram webhook")
+
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	}
+
 	if err := c.ShouldBindJSON(&update); err != nil {
 		log.Error().Err(err).Msg("Failed to parse Telegram webhook")
 		c.JSON(http.StatusOK, gin.H{})
@@ -128,7 +123,7 @@ func (h *WebHookHandler) HandleWebhook(c *gin.Context) {
 	switch {
 	case update.Message.Text != "":
 		h.commands(c, update)
-	case update.PreCheckoutQuery.ID != "" || update.SuccessfulPayment.InvoicePayload != "":
+	case update.PreCheckoutQuery.ID != "" || update.Message.SuccessfulPayment.InvoicePayload != "":
 		h.starsPayment(c, update)
 	default:
 		log.Error().Msg("Invalid update type")
@@ -318,10 +313,10 @@ func (h *WebHookHandler) starsPayment(c *gin.Context, update Update) {
 	}
 
 	// Handle successful payment
-	if update.SuccessfulPayment.InvoicePayload != "" {
+	if update.Message.SuccessfulPayment.InvoicePayload != "" {
 		// Process the payment
 		err := h.paymentService.ProcessPaymentWebhook(
-			update.SuccessfulPayment.InvoicePayload,
+			update.Message.SuccessfulPayment.InvoicePayload,
 			update.Message.From.ID,
 		)
 		if err != nil {
@@ -332,7 +327,7 @@ func (h *WebHookHandler) starsPayment(c *gin.Context, update Update) {
 		// Send confirmation message to user
 		if update.Message.Chat.ID != 0 {
 			SendTelegramMessage(h.db, h.config, update.Message.Chat.ID,
-				fmt.Sprintf("✅ Payment successful! Your balance has been topped up with %d Stars.", update.SuccessfulPayment.TotalAmount))
+				fmt.Sprintf("✅ Payment successful! Your balance has been topped up with %d Stars.", update.Message.SuccessfulPayment.TotalAmount))
 		}
 
 		c.JSON(http.StatusOK, gin.H{})
