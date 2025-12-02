@@ -70,11 +70,11 @@ func main() {
 
 	// Initialize services
 	userService := services.NewUserService(db)
-	paymentService := services.NewPaymentService(db, cfg)
+	telegramService := services.NewTelegramService(cfg)
+	paymentService := services.NewPaymentService(db, cfg, telegramService)
 	subscriptionService := services.NewSubscriptionService(db)
 	planService := services.NewPlanService(db)
 	connectionService := services.NewConnectionService(db, q)
-	telegramService := services.NewTelegramService(cfg.Telegram.BotToken)
 
 	// Set webhook
 	if err := telegramService.SetWebhook(cfg.Telegram.WebhookURL); err != nil {
