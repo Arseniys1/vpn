@@ -259,8 +259,8 @@ func (ts *TelegramService) SendTelegramMessage(db *database.DB, cfg *config.Conf
 	}
 }
 
-// createInvoiceLink creates an invoice link using Telegram's createInvoiceLink API
-func (ts *TelegramService) createInvoiceLink(chatID int64, amount int64, payload string) (string, error) {
+// CreateInvoiceLink creates an invoice link using Telegram's CreateInvoiceLink API
+func (ts *TelegramService) CreateInvoiceLink(chatID int64, amount int64, payload string) (string, error) {
 	botToken := ts.config.Telegram.BotToken
 	if botToken == "" {
 		return "", fmt.Errorf("TELEGRAM_BOT_TOKEN not configured")
@@ -320,4 +320,31 @@ func (ts *TelegramService) createInvoiceLink(chatID int64, amount int64, payload
 	}
 
 	return response.Result, nil
+}
+
+func (ts *TelegramService) AnswerPreCheckoutQuery(preCheckoutQueryID string, ok bool) error {
+	if ts.botToken == "" {
+		return fmt.Errorf("TELEGRAM_BOT_TOKEN not configured")
+	}
+
+	// Send pre-checkout query approval
+	url := fmt.Sprintf("https://api.telegram.org/bot%s/answerPreCheckoutQuery", ts.botToken)
+	payload := map[string]interface{}{
+		"pre_checkout_query_id": preCheckoutQueryID,
+		"ok":                    ok,
+	}
+
+	jsonPayload, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	} else {
+		resp.Body.Close()
+	}
+
+	return nil
 }

@@ -43,7 +43,7 @@ func (s *PaymentService) CreatePayment(userID uuid.UUID, telegramID int64, amoun
 	}
 
 	// Create invoice link
-	invoiceLink, err := s.telegramService.createInvoiceLink(telegramID, amount, payment.Payload)
+	invoiceLink, err := s.telegramService.CreateInvoiceLink(telegramID, amount, payment.Payload)
 	if err != nil {
 		// Update payment status to failed
 		payment.Status = "failed"

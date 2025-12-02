@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -283,31 +282,9 @@ func (h *WebHookHandler) commands(c *gin.Context, update Update) {
 func (h *WebHookHandler) starsPayment(c *gin.Context, update Update) {
 	// Handle pre-checkout query
 	if update.PreCheckoutQuery.ID != "" {
-		// Approve the pre-checkout query
-		botToken := h.config.Telegram.BotToken
-		if botToken == "" {
-			log.Error().Msg("TELEGRAM_BOT_TOKEN not configured")
-			c.JSON(http.StatusOK, gin.H{})
-			return
-		}
-
-		// Send pre-checkout query approval
-		url := fmt.Sprintf("https://api.telegram.org/bot%s/answerPreCheckoutQuery", botToken)
-		payload := map[string]interface{}{
-			"pre_checkout_query_id": update.PreCheckoutQuery.ID,
-			"ok":                    true,
-		}
-
-		jsonPayload, _ := json.Marshal(payload)
-		req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
-		req.Header.Set("Content-Type", "application/json")
-
-		client := &http.Client{Timeout: 30 * time.Second}
-		resp, err := client.Do(req)
+		err := h.telegramService.AnswerPreCheckoutQuery(update.PreCheckoutQuery.ID, true)
 		if err != nil {
-			log.Error().Err(err).Msg("Failed to send pre-checkout query approval")
-		} else {
-			resp.Body.Close()
+			log.Error().Err(err).Msg("Failed to answer pre-checkout query")
 		}
 
 		c.JSON(http.StatusOK, gin.H{})
