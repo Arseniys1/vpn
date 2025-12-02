@@ -120,7 +120,6 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, cfg *config.Config, db *database.D
 	api.Use(middleware.RateLimit(10, 20)) // 10 requests per second, burst of 20
 	// Apply access detection middleware
 	api.Use(middleware.DetectAccessMethod())
-	api.Use(middleware.HybridAuth(cfg.Telegram.BotToken))
 	{
 		// Public routes
 		api.GET("/servers", h.ServerHandler.GetServers)
