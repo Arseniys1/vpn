@@ -65,8 +65,6 @@ export const authenticatedApiCall = async (endpoint: string, options: RequestIni
   const isTelegram = isTelegramWebApp();
   const telegramInitData = getTelegramInitData();
   const browserToken = getBrowserAuthToken();
-
-  // debugger;
   
   // Prepare headers
   const headers: Record<string, string> = {

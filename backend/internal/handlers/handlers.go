@@ -121,13 +121,12 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, cfg *config.Config, db *database.D
 	// Apply access detection middleware
 	api.Use(middleware.DetectAccessMethod())
 	{
-		// Public routes
-		api.GET("/servers", h.ServerHandler.GetServers)
-
 		// Protected routes (require authentication)
 		protected := api.Group("")
 		protected.Use(middleware.HybridAuth(cfg.Telegram.BotToken))
 		{
+			protected.GET("/servers", h.ServerHandler.GetServers)
+
 			// User routes
 			userRoutes := protected.Group("/users")
 			{
