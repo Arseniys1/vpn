@@ -101,7 +101,7 @@ export const authenticatedApiCall = async (endpoint: string, options: RequestIni
         // If unauthorized, clear auth and notify caller to handle redirect
         if (response.status === 401) {
           if (!isTelegram) {
-            // clearBrowserAuth();
+            clearBrowserAuth();
             // Instead of redirecting, we'll throw a specific error that can be caught
             throw new Error('UNAUTHORIZED_BROWSER');
           }
