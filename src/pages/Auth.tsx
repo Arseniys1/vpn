@@ -22,6 +22,13 @@ const Auth: React.FC = () => {
     }
   }, [navigate]);
 
+  // Set system theme on mount
+  useEffect(() => {
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(systemTheme);
+  }, []);
+
   // Poll for authentication status
   useEffect(() => {
     let pollInterval: NodeJS.Timeout | null = null;
