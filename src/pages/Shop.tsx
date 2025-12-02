@@ -61,9 +61,6 @@ const Shop: React.FC<ShopProps> = ({ balance, subscription, onBuy, onTopUp }) =>
       // Open the invoice link in Telegram
       if (paymentResult.invoice_link) {
         window.open(paymentResult.invoice_link, '_blank');
-      } else {
-        // Fallback to direct top-up if payment initiation fails
-        const result = await api.topUp(starsAmount);
       }
     } catch (error: any) {
       console.error('Payment initiation failed:', error);
