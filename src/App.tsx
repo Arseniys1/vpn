@@ -4,7 +4,12 @@ import Layout from './components/Layout';
 import Modal from './components/Modal';
 import { Plan, UserSubscription, ServerLocation, OSType } from './types';
 import * as api from './services/api';
-import {initializeTelegramWebApp, isAuthenticated, getAuthMethod, isTelegramWebApp} from './services/authService';
+import {
+  authenticateTelegramWebApp,
+  initializeTelegramWebApp,
+  isAuthenticated,
+  isTelegramWebApp
+} from './services/authService';
 
 // Pages
 import Main from './pages/Main';
@@ -39,46 +44,31 @@ const App: React.FC = () => {
   
   // Auth State
   const [isAuthenticatedState, setIsAuthenticatedState] = useState(false);
-  const [authMethod, setAuthMethod] = useState<'telegram' | 'browser' | 'none'>('none');
 
   const initialized = useRef(false);
 
   useEffect(() => {
-    const initializeApp = () => {
+    const initializeApp = async () => {
       if (initialized.current) return;
       initialized.current = true;
 
       // Initialize Telegram WebApp if in Telegram
       initializeTelegramWebApp();
 
-      // Check authentication status
-      const authStatus = isAuthenticated();
-      const method = getAuthMethod();
-
-      setIsAuthenticatedState(authStatus);
-      setAuthMethod(method);
-
-      if (authStatus) {
-        loadUserData();
-      } else {
-        setLoading(false);
+      // Set up event listeners for Telegram WebApp buttons
+      if (isTelegramWebApp() && !isAuthenticated()) {
+        await authenticateTelegramWebApp();
       }
 
-      // Set up event listeners for Telegram WebApp buttons
-      if (window.Telegram?.WebApp) {
-        const webApp = window.Telegram.WebApp;
+      // Check authentication status
+      const authStatus = isAuthenticated();
 
-        // Handle back button if available
-        if (webApp.BackButton) {
-          webApp.BackButton.onClick(() => {
-            // Go back in history or to main page
-            if (window.history.length > 1) {
-              window.history.back();
-            } else {
-              window.location.hash = '#/';
-            }
-          });
-        }
+      setIsAuthenticatedState(authStatus);
+
+      if (authStatus) {
+        await loadUserData();
+      } else {
+        setLoading(false);
       }
     };
 

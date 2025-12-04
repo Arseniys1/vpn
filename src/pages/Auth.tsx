@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {authenticatedApiCall, isAuthenticated} from '@/services/authService';
+import {authenticatedApiCall, isAuthenticated, setBrowserAuthToken} from '@/services/authService';
 
 const Auth: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -31,9 +31,7 @@ const Auth: React.FC = () => {
           const data = await authenticatedApiCall(`/auth/status?state=${authState}`);
           
           if (data.status === 'complete') {
-            // Authentication complete, store token and redirect
-            localStorage.setItem('auth_token', data.token);
-            document.cookie = `auth_token=${data.token}; path=/`;
+            setBrowserAuthToken(data.token);
             setIsPolling(false);
             window.location.href = '/';
           } else if (data.status === 'expired') {

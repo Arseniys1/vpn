@@ -11,7 +11,7 @@ export const isTelegramWebApp = (): boolean => {
   
   // For a more reliable check, we can verify multiple properties
   const webApp = telegram.WebApp;
-  return !!(webApp.ready && webApp.expand && webApp.initData);
+  return webApp.initData.length > 0;
 };
 
 // Get Telegram init data
@@ -61,9 +61,6 @@ export const clearBrowserAuth = (): void => {
 
 // Enhanced API call with authentication detection
 export const authenticatedApiCall = async (endpoint: string, options: RequestInit = {}, retries = 3) => {
-  // Determine authentication method
-  const isTelegram = isTelegramWebApp();
-  const telegramInitData = getTelegramInitData();
   const browserToken = getBrowserAuthToken();
   
   // Prepare headers
@@ -75,12 +72,8 @@ export const authenticatedApiCall = async (endpoint: string, options: RequestIni
   if (options.headers) {
     Object.assign(headers, options.headers);
   }
-  
-  // Add appropriate authentication header
-  // Priority: Telegram initData > Browser token
-  if (isTelegram && telegramInitData) {
-    headers['X-Telegram-Init-Data'] = telegramInitData;
-  } else if (browserToken) {
+
+  if (browserToken) {
     headers['Authorization'] = `Bearer ${browserToken}`;
   }
   
@@ -98,11 +91,8 @@ export const authenticatedApiCall = async (endpoint: string, options: RequestIni
         
         // If unauthorized, clear auth and notify caller to handle redirect
         if (response.status === 401) {
-          if (!isTelegram) {
-            clearBrowserAuth();
-            // Instead of redirecting, we'll throw a specific error that can be caught
-            throw new Error('UNAUTHORIZED_BROWSER');
-          }
+          clearBrowserAuth();
+          throw new Error('UNAUTHORIZED_BROWSER');
         }
         
         throw new Error(error.error || `HTTP ${response.status}`);
@@ -121,6 +111,23 @@ export const authenticatedApiCall = async (endpoint: string, options: RequestIni
   throw lastError || new Error('Request failed after retries');
 };
 
+export const authenticateTelegramWebApp = async () => {
+  try {
+    const data = await authenticatedApiCall('/auth/telegram', {
+      method: 'POST',
+      body: JSON.stringify({
+        initData: getTelegramInitData(),
+      }),
+    });
+
+    if (data.status === 'complete') {
+      setBrowserAuthToken(data.token);
+    }
+  } catch (e) {
+    console.error('Authentication failed:', e);
+  }
+}
+
 // Initialize Telegram WebApp
 export const initializeTelegramWebApp = (): void => {
   if (isTelegramWebApp()) {
@@ -133,6 +140,15 @@ export const initializeTelegramWebApp = (): void => {
     // Hide back button by default
     if (webApp.BackButton) {
       webApp.BackButton.hide();
+
+      webApp.BackButton.onClick(() => {
+        // Go back in history or to main page
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          window.location.hash = '#/';
+        }
+      });
     }
     
     // Expand the app to full screen
@@ -142,20 +158,7 @@ export const initializeTelegramWebApp = (): void => {
 
 // Check if user is authenticated
 export const isAuthenticated = (): boolean => {
-  // First check if we're in Telegram WebApp
-  if (isTelegramWebApp()) {
-    // For Telegram WebApp, we primarily rely on initData
-    const initData = getTelegramInitData();
-    // If we have initData, we're authenticated via Telegram
-    if (initData) {
-      return true;
-    }
-    // Fallback to browser token if no initData
-    return !!getBrowserAuthToken();
-  } else {
-    // For browser access, check for browser token
-    return !!getBrowserAuthToken();
-  }
+  return !!getBrowserAuthToken();
 };
 
 // Get authentication method
