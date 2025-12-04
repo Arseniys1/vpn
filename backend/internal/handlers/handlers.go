@@ -161,7 +161,7 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, cfg *config.Config, db *database.D
 
 			// Admin routes (require admin role)
 			adminRoutes := protected.Group("/admin")
-			adminRoutes.Use(middleware.RequireAdmin(db))
+			adminRoutes.Use(middleware.RequireAdmin())
 			{
 				// Stats
 				adminRoutes.GET("/stats", h.AdminHandler.GetStats)
