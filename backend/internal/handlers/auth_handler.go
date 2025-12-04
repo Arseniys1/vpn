@@ -213,6 +213,11 @@ func (h *AuthHandler) TelegramAuth(c *gin.Context) {
 		return
 	}
 
+	// Send welcome notification via WebSocket
+	if err := h.userService.SendWelcomeNotification(user.ID); err != nil {
+		log.Error().Err(err).Msg("Failed to send welcome notification")
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "complete",
 		"token":   browserSession.Token,

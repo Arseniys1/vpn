@@ -28,6 +28,7 @@ const (
 	TaskDeleteConnection = "delete_connection"
 	TaskUpdateTraffic    = "update_traffic"
 	TaskRefreshConnection = "refresh_connection"
+	TaskWebSocketNotification = "websocket_notification"
 )
 
 func New(url, exchange string) (*Queue, error) {
@@ -59,7 +60,7 @@ func New(url, exchange string) (*Queue, error) {
 	}
 
 	// Declare queues
-	queues := []string{"tasks", "traffic_updates"}
+	queues := []string{"tasks", "traffic_updates", "websocket_notifications"}
 	for _, queueName := range queues {
 		_, err = channel.QueueDeclare(
 			queueName,
@@ -106,9 +107,15 @@ func (q *Queue) PublishTask(task Task) error {
 		return fmt.Errorf("failed to marshal task: %w", err)
 	}
 
+	// Determine routing key based on task type
+	routingKey := "tasks"
+	if task.Type == TaskWebSocketNotification {
+		routingKey = "websocket_notifications"
+	}
+
 	err = q.channel.Publish(
 		q.exchange,
-		"tasks",
+		routingKey,
 		false, // mandatory
 		false, // immediate
 		amqp.Publishing{
@@ -178,5 +185,28 @@ func (q *Queue) Close() error {
 		return q.conn.Close()
 	}
 	return nil
+}
+
+// PublishWebSocketNotification publishes a WebSocket notification task
+func (q *Queue) PublishWebSocketNotification(userID uuid.UUID, messageType string, data map[string]interface{}) error {
+	task := Task{
+		Type:   TaskWebSocketNotification,
+		UserID: userID,
+		Data:   data,
+	}
+
+	return q.PublishTask(task)
+}
+
+// PublishWebSocketBroadcast publishes a WebSocket broadcast notification to all users
+func (q *Queue) PublishWebSocketBroadcast(messageType string, data map[string]interface{}) error {
+	// Use zero UUID for broadcast messages
+	task := Task{
+		Type:   TaskWebSocketNotification,
+		UserID: uuid.Nil,
+		Data:   data,
+	}
+
+	return q.PublishTask(task)
 }
 

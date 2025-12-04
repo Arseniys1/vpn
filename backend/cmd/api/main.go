@@ -69,7 +69,7 @@ func main() {
 	defer q.Close()
 
 	// Initialize services
-	userService := services.NewUserService(db)
+	userService := services.NewUserService(db, q)
 	telegramService := services.NewTelegramService(cfg)
 	paymentService := services.NewPaymentService(db, cfg, telegramService)
 	subscriptionService := services.NewSubscriptionService(db)

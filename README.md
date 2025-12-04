@@ -7,6 +7,7 @@ A fully functional VPN service with Telegram integration, built with Go backend 
 ### ✅ Backend
 - Complete CRUD operations for servers, plans, users, tickets
 - Telegram WebApp authentication
+- Real-time WebSocket notifications
 - Rate limiting (10 req/s per IP)
 - Connection pooling for PostgreSQL
 - Health checks for Docker Swarm
@@ -186,6 +187,7 @@ curl -X POST -H "X-Telegram-Init-Data: ..." \
 - [TELEGRAM_BOT_SETUP.md](TELEGRAM_BOT_SETUP.md) - Telegram bot setup
 - [BACKEND_FRONTEND_INTEGRATION.md](BACKEND_FRONTEND_INTEGRATION.md) - Integration details
 - [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md) - Deployment guide
+- [WEBSOCKET_SERVICE.md](WEBSOCKET_SERVICE.md) - WebSocket notification service
 - [backend/README.md](backend/README.md) - API documentation
 
 ## ✅ Ready for Production

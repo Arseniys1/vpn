@@ -43,11 +43,12 @@ type RabbitMQConfig struct {
 }
 
 type ServerConfig struct {
-	Host         string        `mapstructure:"host"`
-	Port         int           `mapstructure:"port"`
-	ReadTimeout  time.Duration `mapstructure:"read_timeout"`
-	WriteTimeout time.Duration `mapstructure:"write_timeout"`
-	IdleTimeout  time.Duration `mapstructure:"idle_timeout"`
+	Host          string        `mapstructure:"host"`
+	Port          int           `mapstructure:"port"`
+	WebsocketPort int           `mapstructure:"websocket_port"`
+	ReadTimeout   time.Duration `mapstructure:"read_timeout"`
+	WriteTimeout  time.Duration `mapstructure:"write_timeout"`
+	IdleTimeout   time.Duration `mapstructure:"idle_timeout"`
 }
 
 type TelegramConfig struct {
@@ -121,6 +122,7 @@ func setDefaults() {
 	// Server defaults
 	viper.SetDefault("server.host", "0.0.0.0")
 	viper.SetDefault("server.port", 8080)
+	viper.SetDefault("server.websocket_port", 8081)
 	viper.SetDefault("server.read_timeout", 15*time.Second)
 	viper.SetDefault("server.write_timeout", 15*time.Second)
 	viper.SetDefault("server.idle_timeout", 60*time.Second)

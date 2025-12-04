@@ -9,14 +9,16 @@ import (
 
 	"xray-vpn-connect/internal/database"
 	"xray-vpn-connect/internal/models"
+	"xray-vpn-connect/internal/queue"
 )
 
 type UserService struct {
-	db *database.DB
+	db  *database.DB
+	queue *queue.Queue
 }
 
-func NewUserService(db *database.DB) *UserService {
-	return &UserService{db: db}
+func NewUserService(db *database.DB, queue *queue.Queue) *UserService {
+	return &UserService{db: db, queue: queue}
 }
 
 func (s *UserService) GetOrCreateUser(telegramID int64, username, firstName, lastName, languageCode string) (*models.User, error) {
@@ -118,4 +120,25 @@ func stringPtr(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// SendWelcomeNotification sends a welcome WebSocket notification to a user
+func (s *UserService) SendWelcomeNotification(userID uuid.UUID) error {
+	data := map[string]interface{}{
+		"message": "Welcome to our VPN service!",
+		"user_id": userID.String(),
+	}
+
+	return s.queue.PublishWebSocketNotification(userID, "welcome", data)
+}
+
+// SendBalanceUpdateNotification sends a balance update WebSocket notification to a user
+func (s *UserService) SendBalanceUpdateNotification(userID uuid.UUID, newBalance int64) error {
+	data := map[string]interface{}{
+		"message":      "Your balance has been updated",
+		"user_id":      userID.String(),
+		"new_balance":  newBalance,
+	}
+
+	return s.queue.PublishWebSocketNotification(userID, "balance_update", data)
 }

@@ -23,6 +23,7 @@ rabbitmq:
 server:
   host: "0.0.0.0"
   port: 8080
+  websocket_port: 8081
   read_timeout: 15s
   write_timeout: 15s
   idle_timeout: 60s

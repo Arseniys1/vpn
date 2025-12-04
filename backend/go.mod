@@ -5,6 +5,7 @@ go 1.21
 require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/google/uuid v1.5.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/rabbitmq/amqp091-go v1.9.0
 	github.com/rs/zerolog v1.32.0
 	github.com/spf13/viper v1.18.2

@@ -115,6 +115,54 @@ services:
         preferences:
           - spread: node.id
 
+  websocket:
+    image: ${REGISTRY:-}xray-vpn-api:${VERSION:-latest}
+    command: ./websocket-binary
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      - APP_ENV=production
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - SERVER_PORT=8081
+    networks:
+      - xray-network
+      - traefik-public
+    depends_on:
+      - rabbitmq
+    deploy:
+      replicas: ${WEBSOCKET_REPLICAS:-3}
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+      placement:
+        constraints:
+          - node.role == worker
+        preferences:
+          - spread: node.id
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.xray-websocket.rule=Host(`${DOMAIN:-api.example.com}`) && PathPrefix(`/ws`)"
+        - "traefik.http.routers.xray-websocket.entrypoints=websecure"
+        - "traefik.http.routers.xray-websocket.tls=true"
+        - "traefik.http.routers.xray-websocket.tls.certresolver=letsencrypt"
+        - "traefik.http.services.xray-websocket.loadbalancer.server.port=8081"
+
   frontend:
     image: ${REGISTRY:-}xray-vpn-frontend:${VERSION:-latest}
     networks:

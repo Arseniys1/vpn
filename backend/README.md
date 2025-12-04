@@ -7,6 +7,7 @@ Production-ready backend for Telegram VPN service built with Go.
 - **RESTful API** using Gin framework
 - **PostgreSQL** database with GORM ORM
 - **RabbitMQ** for task queue processing
+- **Real-time WebSocket notifications**
 - **Xray/3x-ui** panel integration for VPN management
 - **Telegram WebApp** authentication
 - **Docker Swarm** ready with health checks
@@ -18,6 +19,7 @@ Production-ready backend for Telegram VPN service built with Go.
 
 - **API Server** (`cmd/api`) - REST API for frontend
 - **Worker** (`cmd/worker`) - Background task processor
+- **WebSocket Service** (`cmd/websocket`) - Real-time notifications
 - **Services** - Business logic layer
 - **Handlers** - HTTP request handlers
 - **Models** - Database models with GORM
@@ -159,6 +161,15 @@ Worker processes tasks from RabbitMQ queue:
 - `create_connection` - Create VPN connection in Xray panel
 - `delete_connection` - Delete VPN connection from Xray panel
 - `update_traffic` - Update connection traffic statistics
+
+## WebSocket Service
+
+WebSocket service handles real-time notifications:
+
+- Consumes `websocket_notifications` queue from RabbitMQ
+- Manages WebSocket connections for frontend clients
+- Routes messages to specific users or broadcasts to all
+- Supports automatic reconnection with exponential backoff
 
 ## Database Models
 
