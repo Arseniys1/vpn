@@ -116,13 +116,13 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, cfg *config.Config, db *database.D
 	}
 
 	api := r.Group("/api/v1")
-	// Apply rate limiting to all API routes
-	api.Use(middleware.RateLimit(10, 20)) // 10 requests per second, burst of 20
-	// Apply access detection middleware
-	api.Use(middleware.DetectAccessMethod())
 	{
+		detect := api.Group("")
+		detect.Use(middleware.RateLimit(10, 20))
+		detect.Use(middleware.DetectAccessMethod())
+
 		// Protected routes (require authentication)
-		protected := api.Group("")
+		protected := detect.Group("")
 		protected.Use(middleware.HybridAuth(cfg.Telegram.BotToken))
 		{
 			protected.GET("/servers", h.ServerHandler.GetServers)
