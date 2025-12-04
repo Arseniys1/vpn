@@ -161,36 +161,6 @@ export const isAuthenticated = (): boolean => {
   return !!getBrowserAuthToken();
 };
 
-// Get authentication method
-export const getAuthMethod = (): 'telegram' | 'browser' | 'none' => {
-  // First check if we're in Telegram WebApp
-  if (isTelegramWebApp()) {
-    // For Telegram WebApp, check if we have initData
-    const initData = getTelegramInitData();
-    if (initData) {
-      return 'telegram';
-    }
-    // If no initData but we have a browser token, it's browser auth
-    if (getBrowserAuthToken()) {
-      return 'browser';
-    }
-    // If neither, then no auth
-    return 'none';
-  } else {
-    // For browser access, check for browser token
-    if (getBrowserAuthToken()) {
-      return 'browser';
-    }
-    return 'none';
-  }
-};
-
-// Redirect to browser authentication
-export const redirectToBrowserAuth = (): void => {
-  // Instead of redirecting, we'll throw an error that can be caught by components
-  throw new Error('BROWSER_AUTH_REQUIRED');
-};
-
 // Validate browser token
 export const validateBrowserToken = async (token: string): Promise<boolean> => {
   try {
