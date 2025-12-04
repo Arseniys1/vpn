@@ -78,51 +78,49 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, cfg *config.Config, db *database.D
 	// Telegram webhook endpoint (public)
 	r.POST("/webhook/telegram", h.WebHookHandler.HandleWebhook)
 
-	// Public endpoint to get bot information
-	r.GET("/bot-info", func(c *gin.Context) {
-		botUsername := cfg.Telegram.BotUsername
-		if botUsername == "" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Bot username not configured"})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"bot_username": botUsername,
-			"bot_link":     "https://t.me/" + botUsername,
-		})
-	})
-
-	// Authentication endpoints
-	auth := r.Group("/auth")
-	{
-		// Browser authentication - redirect to Telegram
-		auth.GET("/browser", h.AuthHandler.BrowserAuth)
-
-		// Validate browser token
-		auth.GET("/validate", h.AuthHandler.ValidateBrowserToken)
-
-		// Check authentication status
-		auth.GET("/status", h.AuthHandler.CheckAuthStatus)
-
-		// Telegram OAuth endpoint for browser access
-		auth.GET("/telegram", func(c *gin.Context) {
-			// In a real implementation, this would redirect to Telegram OAuth
-			// For now, we'll return instructions
-			c.JSON(http.StatusOK, gin.H{
-				"message":      "To authenticate via Telegram, open this app in Telegram WebApp",
-				"instructions": "This endpoint would normally redirect to Telegram OAuth flow",
-			})
-		})
-	}
-
 	api := r.Group("/api/v1")
 	{
-		detect := api.Group("")
-		detect.Use(middleware.RateLimit(10, 20))
-		detect.Use(middleware.DetectAccessMethod())
+		// Public endpoint to get bot information
+		api.GET("/bot-info", func(c *gin.Context) {
+			botUsername := cfg.Telegram.BotUsername
+			if botUsername == "" {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Bot username not configured"})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"bot_username": botUsername,
+				"bot_link":     "https://t.me/" + botUsername,
+			})
+		})
+
+		// Authentication endpoints
+		auth := api.Group("/auth")
+		{
+			// Browser authentication - redirect to Telegram
+			auth.GET("/browser", h.AuthHandler.BrowserAuth)
+
+			// Validate browser token
+			auth.GET("/validate", h.AuthHandler.ValidateBrowserToken)
+
+			// Check authentication status
+			auth.GET("/status", h.AuthHandler.CheckAuthStatus)
+
+			// Telegram OAuth endpoint for browser access
+			auth.GET("/telegram", func(c *gin.Context) {
+				// In a real implementation, this would redirect to Telegram OAuth
+				// For now, we'll return instructions
+				c.JSON(http.StatusOK, gin.H{
+					"message":      "To authenticate via Telegram, open this app in Telegram WebApp",
+					"instructions": "This endpoint would normally redirect to Telegram OAuth flow",
+				})
+			})
+		}
 
 		// Protected routes (require authentication)
-		protected := detect.Group("")
+		protected := api.Group("")
+		protected.Use(middleware.RateLimit(10, 20))
+		protected.Use(middleware.DetectAccessMethod())
 		protected.Use(middleware.HybridAuth(cfg.Telegram.BotToken))
 		{
 			protected.GET("/servers", h.ServerHandler.GetServers)

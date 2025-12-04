@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {apiCall} from "@/services/api.ts";
-import { isAuthenticated } from '@/services/authService';
+import {authenticatedApiCall, isAuthenticated} from '@/services/authService';
 
 const Auth: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +28,7 @@ const Auth: React.FC = () => {
     if (isPolling && authState) {
       const checkAuthStatus = async () => {
         try {
-          const data = await apiCall(`/auth/status?state=${authState}`);
+          const data = await authenticatedApiCall(`/auth/status?state=${authState}`);
           
           if (data.status === 'complete') {
             // Authentication complete, store token and redirect
@@ -68,7 +67,7 @@ const Auth: React.FC = () => {
   useEffect(() => {
     const fetchBotInfo = async () => {
       try {
-        const data = await apiCall('/bot-info');
+        const data = await authenticatedApiCall('/bot-info');
         setBotLink(data.bot_link);
       } catch (err) {
         console.error('Failed to fetch bot info:', err);
@@ -89,7 +88,7 @@ const Auth: React.FC = () => {
     try {
       // Call the browser auth endpoint to create an auth session
       // This endpoint is at the root level, not under /api/v1
-      const data = await apiCall(`/auth/browser`);
+      const data = await authenticatedApiCall(`/auth/browser`);
 
       const redirectUrl = data.url;
       const url = new URL(redirectUrl);
