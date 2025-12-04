@@ -145,7 +145,7 @@ func handleBrowserAuth(c *gin.Context) {
 
 		// Validate the token against database
 		var session models.BrowserSession
-		if err := db.DB.Where("token = ? AND expires_at > ?", token, time.Now()).First(&session).Error; err != nil {
+		if err := db.DB.Where("token = ? AND expires_at > ?", token, time.Now()).Preload("User").First(&session).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				c.JSON(http.StatusUnauthorized, gin.H{
 					"error": "Invalid or expired token",
@@ -172,7 +172,7 @@ func handleBrowserAuth(c *gin.Context) {
 	if err == nil && sessionCookie != "" {
 		// Validate the session token against database
 		var session models.BrowserSession
-		if err := db.DB.Where("token = ? AND expires_at > ?", sessionCookie, time.Now()).First(&session).Error; err != nil {
+		if err := db.DB.Where("token = ? AND expires_at > ?", sessionCookie, time.Now()).Preload("User").First(&session).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				c.JSON(http.StatusUnauthorized, gin.H{
 					"error": "Invalid or expired session",

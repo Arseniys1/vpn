@@ -247,6 +247,8 @@ type BrowserSession struct {
 	AuthState string    `gorm:"index" json:"auth_state"` // Add this field to associate with auth session
 	CreatedAt time.Time `json:"created_at"`
 	ExpiresAt time.Time `json:"expires_at"`
+
+	User User `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }
 
 // BeforeCreate hook for User
