@@ -41,7 +41,7 @@ func NewHandlers(
 		ConnectionHandler:   NewConnectionHandler(connectionService, userService),
 		AdminHandler:        NewAdminHandler(db),
 		SupportHandler:      NewSupportHandler(db, userService),
-		AuthHandler:         NewAuthHandler(db),
+		AuthHandler:         NewAuthHandler(db, userService),
 		WebHookHandler:      NewWebhookHandler(db, userService, paymentService, telegramService),
 	}
 }
@@ -107,21 +107,13 @@ func (h *Handlers) SetupRoutes(r *gin.Engine, cfg *config.Config, db *database.D
 			auth.GET("/status", h.AuthHandler.CheckAuthStatus)
 
 			// Telegram OAuth endpoint for browser access
-			auth.GET("/telegram", func(c *gin.Context) {
-				// In a real implementation, this would redirect to Telegram OAuth
-				// For now, we'll return instructions
-				c.JSON(http.StatusOK, gin.H{
-					"message":      "To authenticate via Telegram, open this app in Telegram WebApp",
-					"instructions": "This endpoint would normally redirect to Telegram OAuth flow",
-				})
-			})
+			auth.POST("/telegram", h.AuthHandler.TelegramAuth)
 		}
 
 		// Protected routes (require authentication)
 		protected := api.Group("")
 		protected.Use(middleware.RateLimit(10, 20))
-		protected.Use(middleware.DetectAccessMethod())
-		protected.Use(middleware.HybridAuth(cfg.Telegram.BotToken))
+		protected.Use(middleware.Auth())
 		{
 			protected.GET("/servers", h.ServerHandler.GetServers)
 
