@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"xray-vpn-connect/internal/database"
+	"xray-vpn-connect/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -40,6 +42,13 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	// Initialize database
+	db, err := database.New(cfg)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to connect to database")
+	}
+	defer db.Close()
+
 	// Initialize RabbitMQ
 	q, err := queue.New(cfg.RabbitMQ.URL, cfg.RabbitMQ.Exchange)
 	if err != nil {
@@ -55,8 +64,16 @@ func main() {
 
 	// Setup router
 	r := gin.New()
-	r.Use(gin.Recovery())
-	r.Use(gin.Logger())
+
+	r.Use(func(c *gin.Context) {
+		c.Set("db", db)
+		c.Next()
+	})
+
+	r.Use(middleware.Recovery())
+	r.Use(middleware.Logger())
+	r.Use(middleware.CORS())
+	r.Use(middleware.Auth())
 
 	// WebSocket endpoint
 	r.GET("/ws", wsService.HandleWebSocket)

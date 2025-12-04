@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, {useState, useEffect, useRef, use} from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Modal from './components/Modal';
@@ -20,6 +20,8 @@ import Support, { ExtendedTicket } from './pages/Support';
 import Instructions from './pages/Instructions';
 import Admin from './pages/Admin';
 import Auth from './pages/Auth';
+import WebsocketService from "@/services/websocketService.ts";
+import webSocketService from "@/services/websocketService.ts";
 
 const App: React.FC = () => {
   const [balance, setBalance] = useState(0); 
@@ -82,6 +84,9 @@ const App: React.FC = () => {
       
       // Fetch user data
       const userData = await api.getMe();
+
+      webSocketService.connect(userData.id)
+
       setBalance(userData.balance || 0);
       setIsAdmin(userData.is_admin || false);
       

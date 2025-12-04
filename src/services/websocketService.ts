@@ -1,4 +1,6 @@
 // WebSocket Service for handling real-time notifications
+import {getBrowserAuthToken} from "@/services/authService.ts";
+
 class WebSocketService {
   private socket: WebSocket | null = null;
   private reconnectAttempts = 0;
@@ -18,12 +20,23 @@ class WebSocketService {
     this.userId = userId;
     const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8081';
     
+    // Get the authentication token
+    const authToken = getBrowserAuthToken();
+
+    if (!authToken) {
+      console.error('Authentication token not found');
+      return;
+    }
+
     try {
       // Close existing connection if any
       this.disconnect();
       
-      // Create new WebSocket connection
-      this.socket = new WebSocket(`${WS_BASE_URL}/ws?user_id=${userId}`);
+      // Create new WebSocket connection with auth token as query parameter
+      let url = `${WS_BASE_URL}/ws`;
+      url += `?token=${encodeURIComponent(authToken)}`;
+      
+      this.socket = new WebSocket(url);
       
       this.socket.onopen = () => {
         console.log('WebSocket connected for user:', userId);

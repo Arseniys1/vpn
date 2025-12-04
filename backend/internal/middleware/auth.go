@@ -93,6 +93,31 @@ func Auth() gin.HandlerFunc {
 			return
 		}
 
+		queryToken := c.Query("token")
+		if queryToken != "" {
+			var session models.BrowserSession
+			if err := db.DB.Where("token = ? AND expires_at > ?", queryToken, time.Now()).Preload("User").First(&session).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					c.JSON(http.StatusUnauthorized, gin.H{
+						"error": "Invalid or expired session",
+					})
+					c.Abort()
+					return
+				}
+				log.Error().Err(err).Msg("Database error")
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": "Internal server error",
+				})
+				c.Abort()
+				return
+			}
+
+			// Session is valid, set user info in context
+			c.Set("user", session.User)
+			c.Next()
+			return
+		}
+
 		// If no valid authentication found, return unauthorized
 		// Instead of providing a direct auth URL, we'll let the frontend handle this
 		c.JSON(http.StatusUnauthorized, gin.H{

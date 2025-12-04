@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
+	"xray-vpn-connect/internal/models"
 )
 
 // WebSocketService handles WebSocket connections and message broadcasting
@@ -53,15 +54,12 @@ func NewWebSocketService() *WebSocketService {
 
 // HandleWebSocket handles WebSocket upgrade requests
 func (s *WebSocketService) HandleWebSocket(c *gin.Context) {
-	userIDStr := c.Query("user_id")
-	if userIDStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
-		return
-	}
+	userInterface, _ := c.Get("user")
 
-	userID, err := uuid.Parse(userIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id format"})
+	user, ok := userInterface.(models.User)
+	if !ok {
+		log.Error().Msg("Failed to get user from session")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user from session"})
 		return
 	}
 
@@ -74,7 +72,7 @@ func (s *WebSocketService) HandleWebSocket(c *gin.Context) {
 
 	client := &Client{
 		conn:   conn,
-		userID: userID,
+		userID: user.ID,
 	}
 
 	// Register client
