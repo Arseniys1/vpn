@@ -10,7 +10,6 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"xray-vpn-connect/internal/database"
-	"xray-vpn-connect/internal/middleware"
 	"xray-vpn-connect/internal/models"
 	"xray-vpn-connect/internal/services"
 )
@@ -47,64 +46,13 @@ type MeResponse struct {
 }
 
 func (h *UserHandler) Me(c *gin.Context) {
-	// Check authentication method
-	authMethod, _ := c.Get("auth_method")
+	userInterface, _ := c.Get("user")
 
-	var user *models.User
-	var err error
-
-	switch authMethod {
-	case "telegram":
-		// Telegram WebApp authentication
-		telegramUserID, exists := c.Get("telegram_user_id")
-		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-			return
-		}
-
-		telegramUser, _ := c.Get("telegram_user")
-		userData := telegramUser.(middleware.TelegramUser)
-
-		user, err = h.userService.GetOrCreateUser(
-			telegramUserID.(int64),
-			userData.Username,
-			userData.FirstName,
-			userData.LastName,
-			userData.LanguageCode,
-		)
-	case "browser":
-		// Browser authentication
-		// In a real implementation, you would fetch user data based on the authenticated user
-		// For now, we'll return a mock user or handle this properly
-		userID, exists := c.Get("user_id")
-		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-			return
-		}
-
-		userIdUuid, ok := userID.(uuid.UUID)
-		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse user ID"})
-			return
-		}
-
-		user, err = h.userService.GetUserByID(userIdUuid)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to get user"})
-		}
-	default:
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
+	user, ok := userInterface.(models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user from session"})
 		return
 	}
-
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to get or create user")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user"})
-		return
-	}
-
-	// Check subscription status (will be populated by frontend or separate call)
-	hasSubscription := false
 
 	c.JSON(http.StatusOK, MeResponse{
 		ID:              user.ID,
@@ -114,7 +62,7 @@ func (h *UserHandler) Me(c *gin.Context) {
 		LastName:        user.LastName,
 		Balance:         user.Balance,
 		ReferralCode:    user.ReferralCode,
-		HasSubscription: hasSubscription,
+		HasSubscription: false,
 		IsAdmin:         user.IsAdmin,
 	})
 }
@@ -130,38 +78,11 @@ type InitiatePaymentResponse struct {
 
 // InitiateStarsPayment creates a payment request for Telegram Stars
 func (h *UserHandler) InitiateStarsPayment(c *gin.Context) {
-	// Check authentication method
-	authMethod, _ := c.Get("auth_method")
+	userInterface, _ := c.Get("user")
 
-	var user *models.User
-	var err error
-
-	switch authMethod {
-	case "telegram":
-		telegramUserID, _ := c.Get("telegram_user_id")
-		user, err = h.userService.GetUserByTelegramID(telegramUserID.(int64))
-	case "browser":
-		// For browser access, get user by ID
-		userID, _ := c.Get("user_id")
-
-		userIdUuid, ok := userID.(uuid.UUID)
-		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse user ID"})
-			return
-		}
-
-		user, err = h.userService.GetUserByID(userIdUuid)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
-			return
-		}
-	default:
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
-		return
-	}
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+	user, ok := userInterface.(models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user from session"})
 		return
 	}
 
@@ -192,38 +113,11 @@ func (h *UserHandler) InitiateStarsPayment(c *gin.Context) {
 }
 
 func (h *UserHandler) TopUp(c *gin.Context) {
-	// Check authentication method
-	authMethod, _ := c.Get("auth_method")
+	userInterface, _ := c.Get("user")
 
-	var user *models.User
-	var err error
-
-	switch authMethod {
-	case "telegram":
-		telegramUserID, _ := c.Get("telegram_user_id")
-		user, err = h.userService.GetUserByTelegramID(telegramUserID.(int64))
-	case "browser":
-		// For browser access, get user by ID
-		userID, _ := c.Get("user_id")
-
-		userIdUuid, ok := userID.(uuid.UUID)
-		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse user ID"})
-			return
-		}
-
-		user, err = h.userService.GetUserByID(userIdUuid)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
-			return
-		}
-	default:
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
-		return
-	}
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+	user, ok := userInterface.(models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user from session"})
 		return
 	}
 
@@ -238,52 +132,18 @@ func (h *UserHandler) TopUp(c *gin.Context) {
 		return
 	}
 
-	// Get updated user
-	switch authMethod {
-	case "telegram":
-		telegramUserID, _ := c.Get("telegram_user_id")
-		user, _ = h.userService.GetUserByTelegramID(telegramUserID.(int64))
-	case "browser":
-		// For browser access, mock the updated user
-		user.Balance += req.Amount
-	}
+	user.Balance += req.Amount
 
 	c.JSON(http.StatusOK, gin.H{"new_balance": user.Balance})
 }
 
 // GetReferralStats returns referral statistics for the user
 func (h *UserHandler) GetReferralStats(c *gin.Context) {
-	// Check authentication method
-	authMethod, _ := c.Get("auth_method")
+	userInterface, _ := c.Get("user")
 
-	var user *models.User
-	var err error
-
-	switch authMethod {
-	case "telegram":
-		telegramUserID, _ := c.Get("telegram_user_id")
-		user, err = h.userService.GetUserByTelegramID(telegramUserID.(int64))
-	case "browser":
-		// For browser access, get user by ID
-		userID, _ := c.Get("user_id")
-		userIdUuid, ok := userID.(uuid.UUID)
-		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse user ID"})
-			return
-		}
-
-		user, err = h.userService.GetUserByID(userIdUuid)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
-			return
-		}
-	default:
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
-		return
-	}
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+	user, ok := userInterface.(models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user from session"})
 		return
 	}
 

@@ -25,34 +25,11 @@ func NewConnectionHandler(connectionService *services.ConnectionService, userSer
 }
 
 func (h *ConnectionHandler) CreateConnection(c *gin.Context) {
-	// Check authentication method
-	authMethod, _ := c.Get("auth_method")
+	userInterface, _ := c.Get("user")
 
-	var user *models.User
-	var err error
-
-	switch authMethod {
-	case "telegram":
-		telegramUserID, _ := c.Get("telegram_user_id")
-		user, err = h.userService.GetUserByTelegramID(telegramUserID.(int64))
-	case "browser":
-		// For browser access, get user by ID
-		userID, _ := c.Get("user_id")
-		if userIDStr, ok := userID.(string); ok && userIDStr == "browser_user_123" {
-			// Mock user for demonstration
-			user = &models.User{
-				ID:         uuid.New(),
-				TelegramID: 123456789,
-				FirstName:  "Browser",
-			}
-		}
-	default:
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
-		return
-	}
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+	user, ok := userInterface.(models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user from session"})
 		return
 	}
 
@@ -98,38 +75,11 @@ func (h *ConnectionHandler) CreateConnection(c *gin.Context) {
 }
 
 func (h *ConnectionHandler) GetMyConnections(c *gin.Context) {
-	// Check authentication method
-	authMethod, _ := c.Get("auth_method")
+	userInterface, _ := c.Get("user")
 
-	var user *models.User
-	var err error
-
-	switch authMethod {
-	case "telegram":
-		telegramUserID, _ := c.Get("telegram_user_id")
-		user, err = h.userService.GetUserByTelegramID(telegramUserID.(int64))
-	case "browser":
-		// For browser access, get user by ID
-		userID, _ := c.Get("user_id")
-
-		userIdUuid, ok := userID.(uuid.UUID)
-		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Parsing user id error"})
-			return
-		}
-
-		user, err = h.userService.GetUserByID(userIdUuid)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
-			return
-		}
-	default:
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
-		return
-	}
-
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+	user, ok := userInterface.(models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user from session"})
 		return
 	}
 

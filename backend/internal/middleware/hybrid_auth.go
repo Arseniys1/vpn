@@ -162,7 +162,7 @@ func handleBrowserAuth(c *gin.Context) {
 		}
 
 		// Token is valid, set user info in context
-		c.Set("user_id", session.UserID)
+		c.Set("user", session.User)
 		c.Set("auth_method", "browser")
 		return
 	}
@@ -189,7 +189,7 @@ func handleBrowserAuth(c *gin.Context) {
 		}
 
 		// Session is valid, set user info in context
-		c.Set("user_id", session.UserID)
+		c.Set("user", session.User)
 		c.Set("auth_method", "browser")
 		return
 	}

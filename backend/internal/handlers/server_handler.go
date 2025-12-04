@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"github.com/google/uuid"
 	"net/http"
 	"xray-vpn-connect/internal/services"
 
@@ -25,31 +24,11 @@ func NewServerHandler(db *database.DB, userService *services.UserService) *Serve
 }
 
 func (h *ServerHandler) GetServers(c *gin.Context) {
-	authMethod, _ := c.Get("auth_method")
+	userInterface, _ := c.Get("user")
 
-	var user *models.User
-	var err error
-
-	switch authMethod {
-	case "telegram":
-		telegramUserID, _ := c.Get("telegram_user_id")
-		user, err = h.userService.GetUserByTelegramID(telegramUserID.(int64))
-	case "browser":
-		// For browser access, get user by ID
-		userID, _ := c.Get("user_id")
-		userIdUuid, ok := userID.(uuid.UUID)
-		if !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Parse user id failed"})
-			return
-		}
-
-		user, err = h.userService.GetUserByID(userIdUuid)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
-			return
-		}
-	default:
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown authentication method"})
+	user, ok := userInterface.(models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user from session"})
 		return
 	}
 
